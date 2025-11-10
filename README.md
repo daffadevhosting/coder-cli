@@ -16,7 +16,7 @@ __    ___  _____  ____  ____  ____
 Install the CLI globally from npm to use the `coder-cli` command anywhere on your system.
 
 ```bash
-npm install -g coder-cli
+npm install -g @jekyll-studio/coder-cli
 ```
 
 > **Note:** This makes two commands available: `coder-cli` (the primary command) and `coder` (a shorter alias). The `coder` alias might not be available if another program on your system is already using it. This documentation will use `coder-cli` in all examples for consistency.
