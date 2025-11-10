@@ -1,6 +1,6 @@
 {
   "name": "@coder/cli",
-  "version": "3.2.4",
+  "version": "3.2.5",
   "type": "commonjs",
   "description": "AI-powered coding assistant - coder-cli (formerly CoDa)",
   "main": "dist/index.js",
