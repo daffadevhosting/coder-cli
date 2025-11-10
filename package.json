@@ -1,0 +1,42 @@
+{
+  "name": "@coder/cli",
+  "version": "3.2.2",
+  "type": "commonjs",
+  "description": "AI-powered coding assistant - coder-cli (formerly CoDa)",
+  "main": "dist/index.js",
+  "bin": {
+    "coder": "./dist/index.js",
+    "coder-cli": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc && node dist/index.js",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "cli",
+    "ai",
+    "coding",
+    "assistant",
+    "code",
+    "analysis"
+  ],
+  "author": "Daffa A",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "commander": "^12.0.0",
+    "fs-extra": "^11.2.0",
+    "glob": "^10.3.10",
+    "inquirer": "^10.0.0",
+    "node-fetch": "^3.3.2",
+    "tmp-promise": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/chalk": "^0.4.31",
+    "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^9.0.7",
+    "@types/node": "^20.19.24",
+    "typescript": "^5.3.3"
+  }
+}
