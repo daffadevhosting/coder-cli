@@ -6,6 +6,8 @@ dist/
 
 # Configuration files
 .coder-cli-config.json
+package-lock.json
+yarn.lock
 
 # Logs and temporary files
 *.log
