@@ -1,6 +1,6 @@
 {
   "name": "@jekyll-studio/cli",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "commonjs",
   "description": "AI-powered coding assistant - coder-cli (formerly CoDa)",
   "main": "dist/index.js",
