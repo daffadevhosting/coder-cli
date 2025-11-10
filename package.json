@@ -1,12 +1,12 @@
 {
-  "name": "@coder/cli",
+  "name": "@jekyll-studio/cli",
   "version": "1.0.1",
   "type": "commonjs",
   "description": "AI-powered coding assistant - coder-cli (formerly CoDa)",
   "main": "dist/index.js",
   "bin": {
-    "coder": "./dist/index.js",
-    "coder-cli": "./dist/index.js"
+    "coder": "dist/index.js",
+    "coder-cli": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
