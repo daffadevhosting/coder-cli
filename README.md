@@ -1,6 +1,6 @@
 # Coder CLI
 
-[![npm version](https://img.shields.io/npm/v/@coder/cli.svg)](https://www.npmjs.com/package/@coder/cli) 
+[![npm version](https://img.shields.io/npm/v/@jekyll-studio/coder-cli.svg)](https://www.npmjs.com/package/@jekyll-studio/coder-cli) 
 
 AI-powered CLI tool for code analysis, creation, and fixes. This tool integrates with your AI backend to provide intelligent coding assistance right from your terminal.
 
@@ -10,7 +10,7 @@ __    ___  _____  ____  ____  ____
  > >( (__  )(_)(  )(_) ))__)  )   /
 /_/  \___)(_____)(____/(____)(_)\\_)
 ```
-![coder](coder.png)
+![coder](./coder.png))
 ## Installation
 
 Install the CLI globally from npm to use the `coder-cli` command anywhere on your system.
