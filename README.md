@@ -10,7 +10,7 @@ __    ___  _____  ____  ____  ____
  > >( (__  )(_)(  )(_) ))__)  )   /
 /_/  \___)(_____)(____/(____)(_)\\_)
 ```
-
+![coder](coder.png)
 ## Installation
 
 Install the CLI globally from npm to use the `coder-cli` command anywhere on your system.
