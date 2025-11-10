@@ -13,18 +13,20 @@ __    ___  _____  ____  ____  ____
 
 ## Installation
 
-Install the CLI globally from npm to use the `coder` and `coder-cli` commands anywhere on your system.
+Install the CLI globally from npm to use the `coder-cli` command anywhere on your system.
 
 ```bash
 npm install -g @coder/cli
 ```
+
+> **Note:** This makes two commands available: `coder-cli` (the primary command) and `coder` (a shorter alias). The `coder` alias might not be available if another program on your system is already using it. This documentation will use `coder-cli` in all examples for consistency.
 
 ## Configuration
 
 Before using the CLI for the first time, you need to configure it with your AI backend API key.
 
 ```bash
-coder init
+coder-cli init
 ```
 
 This will launch an interactive setup wizard that will ask for your API key and save it in a local configuration file (`~/.coder-cli-config.json`).
@@ -37,7 +39,7 @@ Here are the main commands available:
 Initializes or re-configures the CLI tool.
 
 ```bash
-coder init
+coder-cli init
 ```
 
 ### `chat`
@@ -45,13 +47,13 @@ Starts an interactive chat session. You can provide a local project or a remote 
 
 ```bash
 # Start a chat session in the current directory
-coder chat
+coder-cli chat
 
 # Use a specific local project as context
-coder chat --project /path/to/your/project
+coder-cli chat --project /path/to/your/project
 
 # Use a remote public Git repository as context
-coder chat --repo https://github.com/user/repo.git
+coder-cli chat --repo https://github.com/user/repo.git
 ```
 
 ### `analyze`
@@ -59,10 +61,10 @@ Performs a high-level analysis of a project, identifying its structure, main tec
 
 ```bash
 # Analyze the project in the current directory
-coder analyze
+coder-cli analyze
 
 # Analyze a specific project path
-coder analyze /path/to/your/project
+coder-cli analyze /path/to/your/project
 ```
 
 ### `fix`
@@ -70,10 +72,10 @@ Starts a chat session in "fix" mode to help you resolve a specific issue.
 
 ```bash
 # Fix an issue in the current project directory
-coder fix --issue "The login button is not working on the main page."
+coder-cli fix --issue "The login button is not working on the main page."
 
 # Fix an issue in a specific project path
-coder fix /path/to/your/project --issue "There is a null pointer exception in the user service."
+coder-cli fix /path/to/your/project --issue "There is a null pointer exception in the user service."
 ```
 
 ### `create`
@@ -81,9 +83,9 @@ Starts a chat session in "create" mode to generate new code based on a specifica
 
 ```bash
 # Create new code in the current project directory
-coder create --spec "Create a REST API endpoint for user registration."
+coder-cli create --spec "Create a REST API endpoint for user registration."
 
 # Create new code in a specific project path
-coder create /path/to/your/project --spec "Add a React component for a contact form."
+coder-cli create /path/to/your/project --spec "Add a React component for a contact form."
 ```
 ---
