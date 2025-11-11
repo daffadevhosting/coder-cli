@@ -43,7 +43,7 @@ export const saveConfig = (config: Config): void => {
 // Get default configuration
 const getDefaultConfig = (): Config => {
   return {
-    apiUrl: 'https://coder-ai.mvstream.workers.dev/api/chat', // Production backend
+    apiUrl: 'https://coder-ai.mvstream.workers.dev', // Production backend base URL
     apiKey: undefined,
   };
 };
@@ -89,7 +89,7 @@ export const initializeConfig = async (): Promise<void> => {
   ]);
 
   const config: Config = {
-    apiUrl: 'https://coder-ai.mvstream.workers.dev',
+    apiUrl: 'https://coder-ai.mvstream.workers.dev/api/chat',
     apiKey: answers.apiKey || undefined
   };
 

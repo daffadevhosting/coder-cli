@@ -126,7 +126,7 @@ export const startChatSession = async (
           const processedChunk = processAssistantOutput(chunk);
           process.stdout.write(processedChunk);
           aiResponse += chunk;
-        });
+        }, options);
         
         // If no chunks were received, clear the "Thinking..." message
         if (isFirstChunk) {
@@ -135,7 +135,7 @@ export const startChatSession = async (
         }
 
       } else {
-        aiResponse = await getResponse(config, messages);
+        aiResponse = await getResponse(config, messages, options);
         // Clear the "Thinking..." line
         readline.clearLine(process.stdout, 0);
         readline.cursorTo(process.stdout, 0);
@@ -204,14 +204,19 @@ const askUserConfirmation = async (question: string): Promise<boolean> => {
  * @param config - Configuration for the AI backend
  * @param messages - Conversation messages
  * @param onChunk - Callback function to handle response chunks
+ * @param options - Chat session options
  */
 const getStreamedResponse = async (
   config: Config,
   messages: ChatMessage[],
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  options: ChatSessionOptions = {}
 ): Promise<void> => {
   try {
-    const response = await fetch(config.apiUrl, {
+    // Construct the appropriate endpoint URL based on mode
+    const endpointUrl = buildApiUrl(config.apiUrl, options.mode || 'chat');
+
+    const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -219,7 +224,10 @@ const getStreamedResponse = async (
         'Cache-Control': 'no-cache',
         ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
       },
-      body: JSON.stringify({ messages })
+      body: JSON.stringify({ 
+        messages,
+        mode: options.mode || 'chat'
+      })
     });
     
     if (!response.ok) {
@@ -321,7 +329,7 @@ const getStreamedResponse = async (
     // If streaming fails, try a non-streaming fallback.
     // Don't log here, let the caller handle UI.
     try {
-      const fallbackResponse = await getResponse(config, messages);
+      const fallbackResponse = await getResponse(config, messages, options);
       onChunk(fallbackResponse);
     } catch (fallbackError) {
       // If fallback also fails, throw the most specific error.
@@ -343,15 +351,21 @@ const getStreamedResponse = async (
  * @param messages - Conversation messages
  * @returns AI response
  */
-const getResponse = async (config: Config, messages: ChatMessage[]): Promise<string> => {
+const getResponse = async (config: Config, messages: ChatMessage[], options: ChatSessionOptions = {}): Promise<string> => {
   try {
-    const response = await fetch(config.apiUrl, {
+    // Construct the appropriate endpoint URL based on mode
+    const endpointUrl = buildApiUrl(config.apiUrl, options.mode || 'chat');
+
+    const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
       },
-      body: JSON.stringify({ messages })
+      body: JSON.stringify({ 
+        messages,
+        mode: options.mode || 'chat'
+      })
     });
     
     if (!response.ok) {
@@ -524,4 +538,24 @@ const processAssistantOutput = (output: string): string => {
   }
 
   return processedLines.join('\n');
+};
+
+/**
+ * Helper function to build the proper API URL based on operation mode
+ * @param baseUrl - Base API URL (e.g., https://coder-ai.mvstream.workers.dev)
+ * @param mode - Operation mode ('chat', 'create', 'fix')
+ * @returns Full API endpoint URL
+ */
+const buildApiUrl = (baseUrl: string, mode: string): string => {
+  // Ensure baseUrl doesn't end with trailing slash
+  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  
+  switch (mode) {
+    case 'create':
+      return `${normalizedBaseUrl}/api/create`;
+    case 'fix':
+      return `${normalizedBaseUrl}/api/fix`;
+    default:
+      return `${normalizedBaseUrl}/api/chat`;
+  }
 };
