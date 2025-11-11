@@ -4,6 +4,7 @@ import { program } from 'commander';
 import chalk from 'chalk';
 import fs from 'fs-extra';
 import path from 'path';
+import inquirer from 'inquirer';
 import { analyzeProject } from './project-analyzer';
 import { cloneRepository } from './git-handler';
 import { startChatSession, ChatMessage, buildApiUrl } from './chat-handler';
@@ -167,7 +168,24 @@ const createNewProject = async (config: import('./config').Config, projectName: 
   // Create project directory
   const projectPath = path.join(process.cwd(), projectName);
   if (fs.existsSync(projectPath)) {
-    throw new Error(`Directory ${projectPath} already exists!`);
+    // Ask for confirmation before overwriting
+    const overwrite = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'overwrite',
+        message: `Directory ${projectPath} already exists. Do you want to overwrite it? This will delete all existing files.`,
+        default: false,
+      }
+    ]);
+
+    if (!overwrite.overwrite) {
+      console.log('Project creation cancelled.');
+      return;
+    }
+
+    // Remove the existing directory and create a new one
+    console.log(`Removing existing directory: ${projectPath}`);
+    fs.removeSync(projectPath);
   }
 
   fs.mkdirSync(projectPath, { recursive: true });
