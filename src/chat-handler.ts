@@ -268,7 +268,12 @@ const getStreamedResponse = async (
           if (done) {
             // Process any remaining buffer
             if (buffer.trim()) {
-              onChunk(buffer);
+              // Check if the remaining buffer has a 'data: ' prefix
+              if (buffer.startsWith('data: ')) {
+                onChunk(buffer.substring(6)); // Remove 'data: ' prefix
+              } else {
+                onChunk(buffer);
+              }
             }
             break;
           }
@@ -310,7 +315,12 @@ const getStreamedResponse = async (
                 }
               } catch (e) {
                 // If JSON parsing fails, treat as plain text
-                onChunk(line);
+                // But first remove 'data: ' prefix if present
+                if (line.startsWith('data: ')) {
+                  onChunk(line.substring(6)); // Remove 'data: ' prefix
+                } else {
+                  onChunk(line);
+                }
               }
             }
           }
