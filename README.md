@@ -88,4 +88,26 @@ coder-cli create --spec "Create a REST API endpoint for user registration."
 # Create new code in a specific project path
 coder-cli create /path/to/your/project --spec "Add a React component for a contact form."
 ```
+
+### `new`
+Creates a new project with a specified technology stack and features.
+
+```bash
+# Create a new project with default vanilla web stack
+coder-cli new my-project
+
+# Create a Next.js project
+coder-cli new my-next-app -t nextjs
+
+# Create a Vite project with specific features
+coder-cli new my-vite-app -t vite -s "with TypeScript and Tailwind CSS"
+
+# Create a React project
+coder-cli new my-react-app -t react
+
+# Create a project with custom specifications
+coder-cli new my-portfolio -t vanilla -s "with HTML, CSS, and JavaScript for a personal portfolio with dark mode"
+```
+
+The `new` command intelligently generates complete project structures with all necessary files, configurations, and dependencies based on the chosen technology stack. It supports multiple stacks including Next.js, Vite, React, and vanilla HTML/CSS/JavaScript projects.
 ---
