@@ -542,11 +542,18 @@ const processAssistantOutput = (output: string): string => {
 
 /**
  * Helper function to build the proper API URL based on operation mode
- * @param baseUrl - Base API URL (e.g., https://coder-ai.mvstream.workers.dev)
+ * @param baseUrl - Base API URL (e.g., https://coder-ai.mvstream.workers.dev or https://coder-ai.mvstream.workers.dev/api/chat)
  * @param mode - Operation mode ('chat', 'create', 'fix')
  * @returns Full API endpoint URL
  */
 const buildApiUrl = (baseUrl: string, mode: string): string => {
+  // Check if baseUrl already contains an API path like /api/chat, /api/create, or /api/fix
+  if (baseUrl.includes('/api/chat') || baseUrl.includes('/api/create') || baseUrl.includes('/api/fix')) {
+    // If it already has a specific endpoint, return it as is (for backward compatibility)
+    // This handles the case where the config URL is already pointing to a specific endpoint
+    return baseUrl;
+  }
+  
   // Ensure baseUrl doesn't end with trailing slash
   const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
   
