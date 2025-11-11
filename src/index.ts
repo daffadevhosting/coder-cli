@@ -6,7 +6,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { analyzeProject } from './project-analyzer';
 import { cloneRepository } from './git-handler';
-import { startChatSession, ChatMessage } from './chat-handler';
+import { startChatSession, ChatMessage, buildApiUrl } from './chat-handler';
 import { loadConfig, Config } from './config';
 import { initializeConfig } from './setup';
 import { handleUserError, logTechnicalError } from './errors';
@@ -188,7 +188,8 @@ const createNewProject = async (config: import('./config').Config, projectName: 
   ];
 
   // Call the new project generation endpoint
-  const response = await fetch(`${config.apiUrl}/api/project`, {
+  const endpointUrl = buildApiUrl(config.apiUrl, 'project');
+  const response = await fetch(endpointUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

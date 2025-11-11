@@ -43,7 +43,7 @@ export const saveConfig = (config: Config): void => {
 // Get default configuration
 const getDefaultConfig = (): Config => {
   return {
-    apiUrl: 'https://coder-ai.mvstream.workers.dev', // Production backend base URL
+    apiUrl: 'https://coder-ai.mvstream.workers.dev/api', // Production backend base URL
     apiKey: undefined,
   };
 };
@@ -51,7 +51,7 @@ const getDefaultConfig = (): Config => {
 // Initialize configuration interactively
 export const initializeConfig = async (): Promise<void> => {
   console.log('Setting up Coder CLI configuration...');
-  console.log('Connecting to: https://coder-ai.mvstream.workers.dev/api/chat');
+  console.log('Connecting to: https://coder-ai.mvstream.workers.dev/api');
 
   const configPath = getConfigPath();
 
@@ -61,7 +61,7 @@ export const initializeConfig = async (): Promise<void> => {
       {
         type: 'confirm',
         name: 'overwrite',
-        message: 'Configuration already exists. Do you want to overwrite it?',
+        message: 'Configuration already exists. Do you want to update it?',
         default: false,
       }
     ]);
@@ -89,7 +89,7 @@ export const initializeConfig = async (): Promise<void> => {
   ]);
 
   const config: Config = {
-    apiUrl: 'https://coder-ai.mvstream.workers.dev/api/chat',
+    apiUrl: 'https://coder-ai.mvstream.workers.dev/api',
     apiKey: answers.apiKey || undefined
   };
 

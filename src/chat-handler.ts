@@ -542,27 +542,41 @@ const processAssistantOutput = (output: string): string => {
 
 /**
  * Helper function to build the proper API URL based on operation mode
- * @param baseUrl - Base API URL (e.g., https://coder-ai.mvstream.workers.dev or https://coder-ai.mvstream.workers.dev/api/chat)
- * @param mode - Operation mode ('chat', 'create', 'fix')
+ * @param baseUrl - Base API URL (e.g., https://coder-ai.mvstream.workers.dev/api)
+ * @param mode - Operation mode ('chat', 'create', 'fix', 'project', 'analyze')
  * @returns Full API endpoint URL
  */
-const buildApiUrl = (baseUrl: string, mode: string): string => {
-  // Check if baseUrl already contains an API path like /api/chat, /api/create, or /api/fix
-  if (baseUrl.includes('/api/chat') || baseUrl.includes('/api/create') || baseUrl.includes('/api/fix')) {
-    // If it already has a specific endpoint, return it as is (for backward compatibility)
-    // This handles the case where the config URL is already pointing to a specific endpoint
-    return baseUrl;
+export const buildApiUrl = (baseUrl: string, mode: string): string => {
+  // Ensure baseUrl ends with /api to form proper endpoint URLs
+  let normalizedBaseUrl = baseUrl;
+  
+  // If baseUrl doesn't end with /api, append it
+  if (!normalizedBaseUrl.endsWith('/api')) {
+    if (normalizedBaseUrl.endsWith('/api/chat') || normalizedBaseUrl.endsWith('/api/create') || 
+        normalizedBaseUrl.endsWith('/api/fix') || normalizedBaseUrl.endsWith('/api/project')) {
+      // If it already has a specific endpoint, remove the endpoint part to get base
+      normalizedBaseUrl = normalizedBaseUrl.substring(0, normalizedBaseUrl.lastIndexOf('/'));
+    } else {
+      // If it's just the base domain, append /api
+      if (!normalizedBaseUrl.endsWith('/api')) {
+        normalizedBaseUrl = normalizedBaseUrl.replace(/\/$/, '') + '/api';
+      }
+    }
   }
   
-  // Ensure baseUrl doesn't end with trailing slash
-  const normalizedBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  // Remove trailing slash if present
+  normalizedBaseUrl = normalizedBaseUrl.replace(/\/$/, '');
   
   switch (mode) {
     case 'create':
-      return `${normalizedBaseUrl}/api/create`;
+      return `${normalizedBaseUrl}/create`;
     case 'fix':
-      return `${normalizedBaseUrl}/api/fix`;
+      return `${normalizedBaseUrl}/fix`;
+    case 'project':
+      return `${normalizedBaseUrl}/project`;
+    case 'analyze':
+      return `${normalizedBaseUrl}/analyze`;
     default:
-      return `${normalizedBaseUrl}/api/chat`;
+      return `${normalizedBaseUrl}/chat`;
   }
 };
