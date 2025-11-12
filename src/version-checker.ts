@@ -19,7 +19,7 @@ export const checkForUpdates = async (): Promise<UpdateInfo | null> => {
     const currentVersion = packageData.version;
 
     // Get the latest version from npm registry
-    const response = await fetch('https://registry.npmjs.org/@coder/cli/latest');
+    const response = await fetch('https://registry.npmjs.org/@jekyll-studio/coder-cli/latest');
     
     if (!response.ok) {
       // If we can't reach the registry, just return null
@@ -64,7 +64,7 @@ export const displayUpdateNotification = async (): Promise<void> => {
     console.log(chalk.yellow(`│  Latest Version:  ${updateInfo.latestVersion.padEnd(36)} │`));
     console.log(chalk.yellow('├─────────────────────────────────────────────────────────┤'));
     console.log(chalk.yellow('│  Run the following command to update:                   │'));
-    console.log(chalk.yellow('│  npm install -g @coder/cli@latest                       │'));
+    console.log(chalk.yellow('│  npm install -g @jekyll-studio/coder-cli@latest         │'));
     console.log(chalk.yellow('└─────────────────────────────────────────────────────────┘'));
     console.log('');
   }
