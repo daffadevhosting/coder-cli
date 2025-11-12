@@ -154,6 +154,41 @@ program
     }
   });
 
+program
+  .command('explain')
+  .description('Get an AI explanation for a piece of code')
+  .argument('<path>', 'path to the file containing the code to explain')
+  .option('-l, --line <number>', 'specific line number to explain (optional)')
+  .action(async (filePath, options) => {
+    try {
+      if (!fs.existsSync(filePath)) {
+        throw new Error(`File not found: ${filePath}`);
+      }
+      const fileContent = await fs.readFile(filePath, 'utf8');
+      let codeToExplain = fileContent;
+      let explanationContext = `Explain the following code from file '${filePath}':\n\n\`\`\`\n${fileContent}\n\`\`\``;
+
+      if (options.line) {
+        const lines = fileContent.split('\n');
+        const lineNumber = parseInt(options.line, 10);
+        if (isNaN(lineNumber) || lineNumber < 1 || lineNumber > lines.length) {
+          throw new Error(`Invalid line number: ${options.line}`);
+        }
+        codeToExplain = lines[lineNumber - 1];
+        explanationContext = `Explain line ${lineNumber} from file '${filePath}':\n\n\`\`\`\n${codeToExplain}\n\`\`\``;
+      }
+
+      await startChatSession(config, undefined, true, {
+        mode: 'explain',
+        explanationRequest: explanationContext
+      });
+    } catch (error) {
+      console.error(chalk.red(handleUserError(error)));
+      logTechnicalError(error);
+      process.exit(1);
+    }
+  });
+
 /**
  * Create a new project with specified technology stack
  */

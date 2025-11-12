@@ -5,10 +5,10 @@
 AI-powered CLI tool for code analysis, creation, and fixes. This tool integrates with your AI backend to provide intelligent coding assistance right from your terminal.
 
 ```
-__    ___  _____  ____  ____  ____ 
-\\ \  / __)(  _  )(  _ \( ___)(  _ \
- > >( (__  )(_)(  )(_) ))__)  )   /
-/_/  \___)(_____)(____/(____)(_)\\_)
+__     ___  _____  ____  ____  ____ 
+\\ \\   / __)(  _  )(  _ \\( ___)(  _ \\
+) ) ( (__  )(_)(  )(_) ))__)  )   /
+/_/   \\___)(_____)(____/(____)(_)\\_)
 ```
 ![coder](./coder.png))
 ## Installation
@@ -54,17 +54,20 @@ coder-cli chat --project /path/to/your/project
 
 # Use a remote public Git repository as context
 coder-cli chat --repo https://github.com/user/repo.git
+
+# Start a chat session without streaming responses
+coder-cli chat --no-stream
 ```
 
 ### `analyze`
 Performs a high-level analysis of a project, identifying its structure, main technologies, and potential areas for improvement.
 
 ```bash
-# Analyze the project in the current directory
+# Analyze the project in the current directory with default text output
 coder-cli analyze
 
-# Analyze a specific project path
-coder-cli analyze /path/to/your/project
+# Analyze a specific project path and output in JSON format
+coder-cli analyze /path/to/your/project -o json
 ```
 
 ### `fix`
@@ -110,4 +113,15 @@ coder-cli new my-portfolio -t vanilla -s "with HTML, CSS, and JavaScript for a p
 ```
 
 The `new` command intelligently generates complete project structures with all necessary files, configurations, and dependencies based on the chosen technology stack. It supports multiple stacks including Next.js, Vite, React, and vanilla HTML/CSS/JavaScript projects.
+
+### `explain`
+Gets an AI explanation for a piece of code from a specified file, optionally focusing on a specific line.
+
+```bash
+# Explain the entire content of a file
+coder-cli explain src/utils/helper.ts
+
+# Explain a specific line in a file
+coder-cli explain src/components/Button.tsx --line 25
+```
 ---

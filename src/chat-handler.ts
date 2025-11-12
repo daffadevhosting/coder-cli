@@ -16,9 +16,10 @@ export interface ChatMessage {
 
 // Chat session options
 export interface ChatSessionOptions {
-  mode?: 'chat' | 'fix' | 'create';
+  mode?: 'chat' | 'fix' | 'create' | 'explain';
   issueDescription?: string;
   specification?: string;
+  explanationRequest?: string; // New field for explanation mode
 }
 
 /**
@@ -79,6 +80,11 @@ export const startChatSession = async (
     messages.push({
       role: 'user',
       content: `Please create the following feature: ${options.specification}\n\nProvide the new code in your response.`
+    });
+  } else if (options.mode === 'explain' && options.explanationRequest) {
+    messages.push({
+      role: 'user',
+      content: options.explanationRequest
     });
   }
   
@@ -459,6 +465,8 @@ If you're asked to create code, implement the requested functionality following 
     systemPrompt += `\n\nThe user wants to fix an issue: ${options.issueDescription || 'Unknown issue'}`;
   } else if (options.mode === 'create') {
     systemPrompt += `\n\nThe user wants to create: ${options.specification || 'Something unspecified'}`;
+  } else if (options.mode === 'explain') {
+    systemPrompt += `\n\nThe user wants an explanation for the following code: ${options.explanationRequest || 'a piece of code'}`;
   }
   
   return { systemPrompt, initialMessages };
@@ -576,6 +584,8 @@ export const buildApiUrl = (baseUrl: string, mode: string): string => {
       return `${normalizedBaseUrl}/project`;
     case 'analyze':
       return `${normalizedBaseUrl}/analyze`;
+    case 'explain':
+      return `${normalizedBaseUrl}/explain`;
     default:
       return `${normalizedBaseUrl}/chat`;
   }
