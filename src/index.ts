@@ -7,7 +7,7 @@ import path from 'path';
 import inquirer from 'inquirer';
 import { analyzeProject } from './project-analyzer';
 import { cloneRepository } from './git-handler';
-import { startChatSession, ChatMessage, buildApiUrl } from './chat-handler';
+import { startChatSession, ChatMessage, buildApiUrl, startRedesignSession } from './chat-handler';
 import { loadConfig, Config } from './config';
 import { initializeConfig } from './setup';
 import { handleUserError, logTechnicalError } from './errors';
