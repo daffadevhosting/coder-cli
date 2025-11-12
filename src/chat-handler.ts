@@ -103,9 +103,11 @@ export const startChatSession = async (
       const aiResponse = await getResponse(config, messages, options);
       spinner.stop();
 
+      const cleanedResponse = cleanAiScriptResponse(aiResponse); // Clean the AI response
+
       const filePath = path.join(projectPath, options.scriptName);
       await fs.ensureDir(path.dirname(filePath)); // Ensure directory exists
-      await fs.writeFile(filePath, aiResponse);
+      await fs.writeFile(filePath, cleanedResponse); // Write cleaned response
       console.log(chalk.green(`\nSuccessfully created script: ${filePath}`));
     } catch (error) {
       spinner.stop();
@@ -223,6 +225,26 @@ const askUserConfirmation = async (question: string): Promise<boolean> => {
   rl.close();
   
   return ['y', 'yes', 'Y', 'YES'].includes(answer.trim());
+};
+
+/**
+ * Cleans the AI's script generation response by removing thinking blocks and extracting code from markdown.
+ * @param rawResponse - The raw string response from the AI.
+ * @returns The cleaned script content.
+ */
+const cleanAiScriptResponse = (rawResponse: string): string => {
+  let cleaned = rawResponse;
+
+  // 1. Remove <think>...</think> blocks
+  cleaned = cleaned.replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+
+  // 2. Extract code from markdown blocks (e.g., ```javascript\n...\n```)
+  const markdownMatch = cleaned.match(/```(?:\w+)?\n([\s\S]*?)\n```/);
+  if (markdownMatch && markdownMatch[1]) {
+    cleaned = markdownMatch[1].trim();
+  }
+
+  return cleaned;
 };
 
 /**
