@@ -115,7 +115,7 @@ export const startChatSession = async (
       const aiResponse = await getResponse(config, messages, options);
       spinner.stop();
 
-      const cleanedResponse = cleanAiScriptResponse(aiResponse); // Clean the AI response
+      const cleanedResponse = cleanAiScriptResponse(aiResponse.content); // Clean the AI response
 
       const filePath = path.join(projectPath, options.scriptName);
       await fs.ensureDir(path.dirname(filePath)); // Ensure directory exists
