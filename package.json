@@ -34,13 +34,15 @@
     "glob": "^10.3.10",
     "inquirer": "^10.0.0",
     "node-fetch": "^3.3.2",
-    "tmp-promise": "^3.0.3"
+    "tmp-promise": "^3.0.3",
+    "ora": "^8.0.1"
   },
   "devDependencies": {
     "@types/chalk": "^0.4.31",
     "@types/fs-extra": "^11.0.4",
     "@types/inquirer": "^9.0.7",
     "@types/node": "^20.19.24",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "@types/ora": "^3.2.0"
   }
 }
