@@ -228,7 +228,13 @@ const createNewProject = async (config: import('./config').Config, projectName: 
   console.log(`Created directory: ${projectPath}`);
 
   // Generate project using AI
-  const projectSpec = `Create a new ${technology ? technology : 'web'} project named ${projectName}. ${specification ? specification : 'Include basic structure and functionality.'} Provide all necessary files, code, and configuration.`;
+  let projectSpec = `Create a new ${technology ? technology : 'web'} project.`;
+  if (specification) {
+    projectSpec += ` The user wants: ${specification}.`;
+  } else {
+    projectSpec += ` Include basic structure and functionality.`;
+  }
+  projectSpec += ` Provide all necessary files, code, and configuration.`;
 
   const messages: ChatMessage[] = [
     { 
