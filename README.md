@@ -92,6 +92,17 @@ coder-cli create --spec "Create a REST API endpoint for user registration."
 coder-cli create /path/to/your/project --spec "Add a React component for a contact form."
 ```
 
+### `create-script`
+Generates a new script file based on a given specification and project context.
+
+```bash
+# Generate an analytics.js script in the current directory
+coder-cli create-script analytics.js -s "a JavaScript file to track page views and user interactions"
+
+# Generate a utility script in a specific project path
+coder-cli create-script /path/to/your/project/utils/data-fetcher.js -s "a script to fetch data from an external API"
+```
+
 ### `new`
 Creates a new project with a specified technology stack and features.
 
