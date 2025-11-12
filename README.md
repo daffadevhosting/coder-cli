@@ -59,6 +59,25 @@ coder-cli chat --repo https://github.com/user/repo.git
 coder-cli chat --no-stream
 ```
 
+### `redesign`
+Redesigns a web page from a given URL into new HTML, CSS, and JavaScript files.
+
+```bash
+# Redesign a web page from a URL
+coder-cli redesign https://www.example.com
+```
+
+### `explain`
+Gets an AI explanation for a piece of code from a specified file, optionally focusing on a specific line.
+
+```bash
+# Explain the entire content of a file
+coder-cli explain src/utils/helper.ts
+
+# Explain a specific line in a file
+coder-cli explain src/components/Button.tsx --line 25
+```
+
 ### `analyze`
 Performs a high-level analysis of a project, identifying its structure, main technologies, and potential areas for improvement.
 
@@ -124,15 +143,4 @@ coder-cli new my-portfolio -t vanilla -s "with HTML, CSS, and JavaScript for a p
 ```
 
 The `new` command intelligently generates complete project structures with all necessary files, configurations, and dependencies based on the chosen technology stack. It supports multiple stacks including Next.js, Vite, React, and vanilla HTML/CSS/JavaScript projects.
-
-### `explain`
-Gets an AI explanation for a piece of code from a specified file, optionally focusing on a specific line.
-
-```bash
-# Explain the entire content of a file
-coder-cli explain src/utils/helper.ts
-
-# Explain a specific line in a file
-coder-cli explain src/components/Button.tsx --line 25
-```
 ---

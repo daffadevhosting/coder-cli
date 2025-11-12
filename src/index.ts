@@ -227,6 +227,20 @@ program
     }
   });
 
+program
+  .command('redesign')
+  .description('Re-design a web page from a given URL using AI')
+  .argument('<url>', 'URL of the web page to re-design')
+  .action(async (url) => {
+    try {
+      await startRedesignSession(config, url);
+    } catch (error) {
+      console.error(chalk.red(handleUserError(error)));
+      logTechnicalError(error);
+      process.exit(1);
+    }
+  });
+
 /**
  * Create a new project with specified technology stack
  */

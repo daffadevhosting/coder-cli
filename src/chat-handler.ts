@@ -9,6 +9,7 @@ import { applyModifications, parseModificationsFromResponse, prepareFileContext,
 import readline from 'readline';
 import path from 'path'; // Added import
 import fs from 'fs-extra'; // Added import
+import inquirer from 'inquirer';
 
 // Import types for chat messages
 export interface ChatMessage {
@@ -18,13 +19,14 @@ export interface ChatMessage {
 
 // Chat session options
 export interface ChatSessionOptions {
-  mode?: 'chat' | 'fix' | 'create' | 'explain' | 'script';
+  mode?: 'chat' | 'fix' | 'create' | 'explain' | 'script' | 'redesign';
   issueDescription?: string;
   specification?: string;
   explanationRequest?: string;
   scriptName?: string;
   scriptSpecification?: string;
   scriptContext?: string;
+  redesignUrl?: string;
 }
 
 /**
@@ -205,6 +207,122 @@ export const startChatSession = async (
       };  
   // Start the chat loop
   await chatLoop();
+};
+
+/**
+ * Start a re-design session with the AI backend
+ * @param config - Configuration for the AI backend
+ * @param url - The URL of the web page to re-design
+ */
+export const startRedesignSession = async (config: Config, url: string): Promise<void> => {
+  console.log(chalk.cyan(`\n🚀 Starting AI re-design session for: ${url}`));
+
+  // Show a warning if no API key is configured
+  if (!config.apiKey) {
+    console.log(chalk.yellow('Warning: No API key configured. Re-design feature may be limited or fail.'));
+    console.log(chalk.yellow('Run `coder-cli init` to configure your API key.'));
+  }
+
+  const spinner = ora('Sending re-design request to AI...').start();
+  try {
+    const endpointUrl = buildApiUrl(config.apiUrl, 'redesign');
+    
+    const response = await fetch(endpointUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
+      },
+      body: JSON.stringify({ url })
+    });
+
+    if (!response.ok) {
+      spinner.stop();
+      if (response.status === 401 || response.status === 403) {
+        throw new AiCommunicationError(`Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'`);
+      }
+      const errorText = await response.text();
+      throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+
+    const data = await response.json();
+    const files = data.files || [];
+
+    spinner.stop();
+
+    if (files.length === 0) {
+      console.log(chalk.yellow('AI did not generate any files for re-design.'));
+      return;
+    }
+
+    console.log(chalk.green(`\n✅ AI generated ${files.length} files for re-design.`));
+
+    const { confirmSave } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'confirmSave',
+        message: 'Do you want to save these re-designed files to a local directory?',
+        default: true,
+      }
+    ]);
+
+    if (confirmSave) {
+      const { targetDirectory } = await inquirer.prompt([
+        {
+          type: 'input',
+          name: 'targetDirectory',
+          message: 'Enter the target directory to save the files (e.g., "redesigned-page"):',
+          default: 'redesigned-page',
+          validate: (input) => input.trim() !== '' || 'Directory name cannot be empty.',
+        }
+      ]);
+
+      const fullTargetPath = path.resolve(process.cwd(), targetDirectory);
+
+      // Check if directory exists and ask for overwrite
+      if (await fs.pathExists(fullTargetPath)) {
+        const { overwrite } = await inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'overwrite',
+            message: `Directory "${targetDirectory}" already exists. Overwrite its contents?`,
+            default: false,
+          }
+        ]);
+
+        if (!overwrite) {
+          console.log(chalk.yellow('File saving cancelled.'));
+          return;
+        }
+        await fs.emptyDir(fullTargetPath); // Clear directory if overwriting
+      } else {
+        await fs.mkdirp(fullTargetPath); // Create directory if it doesn't exist
+      }
+
+      for (const file of files) {
+        const filePath = path.join(fullTargetPath, file.path);
+        const dirPath = path.dirname(filePath);
+        
+        await fs.ensureDir(dirPath); // Ensure directory exists
+        await fs.writeFile(filePath, file.content);
+        console.log(chalk.green(`  Saved: ${filePath}`));
+      }
+
+      console.log(chalk.green(`\nSuccessfully saved re-designed files to: ${fullTargetPath}`));
+      console.log(chalk.blue('You can now open these files in your browser or editor to review the re-design.'));
+    } else {
+      console.log(chalk.yellow('File saving skipped.'));
+    }
+
+  } catch (error) {
+    spinner.stop();
+    if (error instanceof AiCommunicationError) {
+      console.error(chalk.red(error.message));
+    } else {
+      console.error(chalk.red('Error during re-design session:'), error);
+    }
+    process.exit(1);
+  }
 };
 
 /**
@@ -642,6 +760,8 @@ export const buildApiUrl = (baseUrl: string, mode: string): string => {
       return `${normalizedBaseUrl}/explain`;
     case 'script':
       return `${normalizedBaseUrl}/script`;
+    case 'redesign':
+      return `${normalizedBaseUrl}/redesign`;
     default:
       return `${normalizedBaseUrl}/chat`;
   }
