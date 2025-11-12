@@ -7,6 +7,8 @@ import { ProjectAnalysisResult } from './project-analyzer.js';
 import { cloneRepository } from './git-handler.js';
 import { applyModifications, parseModificationsFromResponse, prepareFileContext, CodeModification } from './code-modifier.js';
 import readline from 'readline';
+import path from 'path'; // Added import
+import fs from 'fs-extra'; // Added import
 
 // Import types for chat messages
 export interface ChatMessage {
@@ -16,10 +18,13 @@ export interface ChatMessage {
 
 // Chat session options
 export interface ChatSessionOptions {
-  mode?: 'chat' | 'fix' | 'create' | 'explain';
+  mode?: 'chat' | 'fix' | 'create' | 'explain' | 'script';
   issueDescription?: string;
   specification?: string;
-  explanationRequest?: string; // New field for explanation mode
+  explanationRequest?: string;
+  scriptName?: string;
+  scriptSpecification?: string;
+  scriptContext?: string;
 }
 
 /**
@@ -86,9 +91,34 @@ export const startChatSession = async (
       role: 'user',
       content: options.explanationRequest
     });
+  } else if (options.mode === 'script' && options.scriptContext && options.scriptName && projectPath) {
+    messages.push({
+      role: 'user',
+      content: options.scriptContext
+    });
+    // For script mode, we expect a single response which is the script content
+    // We will not enter the chat loop, but directly get the response and write to file
+    const spinner = ora(`Generating script ${options.scriptName}...`).start();
+    try {
+      const aiResponse = await getResponse(config, messages, options);
+      spinner.stop();
+
+      const filePath = path.join(projectPath, options.scriptName);
+      await fs.ensureDir(path.dirname(filePath)); // Ensure directory exists
+      await fs.writeFile(filePath, aiResponse);
+      console.log(chalk.green(`\nSuccessfully created script: ${filePath}`));
+    } catch (error) {
+      spinner.stop();
+      if (error instanceof AiCommunicationError) {
+        console.error(chalk.red(error.message));
+      } else {
+        console.error(chalk.red('Error generating script:'), error);
+      }
+    }
+    return; // Exit after generating script, no interactive chat
   }
   
-  // Set up readline interface for user input
+  // If not in script mode, proceed with interactive chat loop
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -467,6 +497,8 @@ If you're asked to create code, implement the requested functionality following 
     systemPrompt += `\n\nThe user wants to create: ${options.specification || 'Something unspecified'}`;
   } else if (options.mode === 'explain') {
     systemPrompt += `\n\nThe user wants an explanation for the following code: ${options.explanationRequest || 'a piece of code'}`;
+  } else if (options.mode === 'script') {
+    systemPrompt += `\n\nThe user wants to generate a script file named "${options.scriptName || 'unknown.js'}" with the following specification: "${options.scriptSpecification || 'unspecified functionality'}". Analyze the provided project context and generate the script content. Output ONLY the script content, no additional text or markdown.`;
   }
   
   return { systemPrompt, initialMessages };
@@ -586,6 +618,8 @@ export const buildApiUrl = (baseUrl: string, mode: string): string => {
       return `${normalizedBaseUrl}/analyze`;
     case 'explain':
       return `${normalizedBaseUrl}/explain`;
+    case 'script':
+      return `${normalizedBaseUrl}/script`;
     default:
       return `${normalizedBaseUrl}/chat`;
   }

@@ -189,6 +189,44 @@ program
     }
   });
 
+program
+  .command('create-script')
+  .description('Generate a new script file with AI, tailored to your project context')
+  .argument('<script-name>', 'name of the script file to create (e.g., "utils.js", "myComponent.tsx")')
+  .argument('[path]', 'path to the project directory (defaults to current directory)')
+  .option('-s, --spec <specification>', 'specify what the script should do (e.g., "a React component for a button", "a utility function for date formatting")')
+  .action(async (scriptName, projectPathArg, options) => {
+    try {
+      const projectPath = projectPathArg || process.cwd();
+      if (!options.spec) {
+        throw new Error('Specification (-s, --spec) is required for creating a script.');
+      }
+
+      console.log(`Generating script: ${scriptName} in ${projectPath}`);
+      console.log(`Specification: ${options.spec}`);
+
+      // Analyze the project to provide context to the AI
+      const projectContext = await analyzeProject(projectPath);
+
+      // Construct the user message for AI
+      const userMessage = `Generate a script file named "${scriptName}" that does the following: "${options.spec}".
+      The script should be compatible with the existing project structure and technologies.
+      Project context:
+      ${projectContext}`;
+
+      await startChatSession(config, projectPath, true, {
+        mode: 'script',
+        scriptName: scriptName,
+        scriptSpecification: options.spec,
+        scriptContext: userMessage
+      });
+    } catch (error) {
+      console.error(chalk.red(handleUserError(error)));
+      logTechnicalError(error);
+      process.exit(1);
+    }
+  });
+
 /**
  * Create a new project with specified technology stack
  */
