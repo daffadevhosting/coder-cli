@@ -17,6 +17,16 @@ export interface ChatMessage {
   content: string;
 }
 
+// Interface for AI response including headers
+export interface AiResponse {
+  content: string;
+  headers: {
+    'x-ratelimit-remaining'?: string;
+    'x-ratelimit-limit'?: string;
+    'x-ratelimit-reset'?: string;
+  };
+}
+
 // Chat session options
 export interface ChatSessionOptions {
   mode?: 'chat' | 'fix' | 'create' | 'explain' | 'script' | 'redesign';
@@ -147,37 +157,43 @@ export const startChatSession = async (
     
         // Get AI response
         const spinner = ora('Thinking...').start(); // Start spinner here
+        let aiResponse: AiResponse;
         try {
-          let aiResponse = '';
+          let aiResponseContent = '';
           let isFirstChunk = true;
     
           if (enableStreaming) {
-            await getStreamedResponse(config, messages, (chunk) => {
+            aiResponse = await getStreamedResponse(config, messages, (chunk) => {
               if (isFirstChunk) {
                 spinner.stop();
                 isFirstChunk = false;
               }
               const processedChunk = processAssistantOutput(chunk);
               process.stdout.write(processedChunk);
-              aiResponse += chunk;
+              aiResponseContent += chunk;
             }, options);
             
             if (isFirstChunk) { // If no chunks were received, stop the spinner
               spinner.stop();
             }
+            aiResponse.content = aiResponseContent; // Set the full content after streaming
     
           } else {
             aiResponse = await getResponse(config, messages, options);
             spinner.stop();
             
-            const processedResponse = processAssistantOutput(aiResponse);
+            const processedResponse = processAssistantOutput(aiResponse.content);
             console.log(processedResponse);
-            messages.push({ role: 'assistant', content: aiResponse });
           }
+          
+          messages.push({ role: 'assistant', content: aiResponse.content });
+
+          // Display token warnings after a successful response
+          displayTokenWarnings(aiResponse.headers);
           
           // Check if the response contains code modifications that should be applied
           if (projectPath && projectAnalysis) {
-            const modifications = parseModificationsFromResponse(aiResponse);
+            const modifications = parseModificationsFromResponse(aiResponse.content);
             if (modifications.length > 0) {
               console.log(`\nFound ${modifications.length} potential code modifications in the response.`);
               
@@ -207,6 +223,25 @@ export const startChatSession = async (
       };  
   // Start the chat loop
   await chatLoop();
+};
+
+/**
+ * Display warnings related to API token usage.
+ * @param headers - Response headers containing rate limit and token info.
+ */
+const displayTokenWarnings = (headers: AiResponse['headers']) => {
+  const remaining = parseInt(headers['x-ratelimit-remaining'] || '0', 10);
+  const limit = parseInt(headers['x-ratelimit-limit'] || '0', 10);
+
+  if (isNaN(remaining) || isNaN(limit) || limit === 0) {
+    return; // No valid rate limit info
+  }
+
+  if (remaining <= 2 && remaining > 0) {
+    console.log(chalk.yellow(`\n⚠️ Peringatan: Anda memiliki ${remaining} permintaan tersisa sebelum mencapai batas. Pertimbangkan untuk membeli token.`));
+  } else if (remaining === 0) {
+    console.log(chalk.red(`\n❌ Peringatan: Anda telah mencapai batas permintaan. Silakan beli token untuk melanjutkan.`));
+  }
 };
 
 /**
@@ -377,7 +412,10 @@ const getStreamedResponse = async (
   messages: ChatMessage[],
   onChunk: (chunk: string) => void,
   options: ChatSessionOptions = {}
-): Promise<void> => {
+): Promise<AiResponse> => {
+  let aiResponseContent = '';
+  const responseHeaders: AiResponse['headers'] = {};
+
   try {
     // Construct the appropriate endpoint URL based on mode
     const endpointUrl = buildApiUrl(config.apiUrl, options.mode || 'chat');
@@ -396,12 +434,42 @@ const getStreamedResponse = async (
       })
     });
     
+    // Extract rate limit headers
+    responseHeaders['x-ratelimit-remaining'] = response.headers.get('x-ratelimit-remaining') || undefined;
+    responseHeaders['x-ratelimit-limit'] = response.headers.get('x-ratelimit-limit') || undefined;
+    responseHeaders['x-ratelimit-reset'] = response.headers.get('x-ratelimit-reset') || undefined;
+
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new AiCommunicationError(`Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'`);
-      }
       const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // If not JSON, use raw text
+        errorMessage = errorText;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        if (errorMessage.includes('Daily free generation limit exceeded')) {
+          throw new AiCommunicationError(
+            `${errorMessage}\n\nAnda telah mencapai batas generasi harian gratis. Silakan beli token untuk terus menggunakan layanan AI.`
+          );
+        } else if (errorMessage.includes('Insufficient tokens')) {
+          throw new AiCommunicationError(
+            `${errorMessage}\n\nToken Anda tidak mencukupi. Silakan beli lebih banyak token untuk melanjutkan.`
+          );
+        } else {
+          throw new AiCommunicationError(
+            `Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'\nDetails: ${errorMessage}`
+          );
+        }
+      } else {
+        throw new Error(errorMessage);
+      }
     }
     
     // Check if the response is actually a streaming response
@@ -413,7 +481,8 @@ const getStreamedResponse = async (
         // If no body, fall back to reading the entire response
         const text = await response.text();
         onChunk(text);
-        return;
+        aiResponseContent += text;
+        return { content: aiResponseContent, headers: responseHeaders };
       }
       
       const reader = body.getReader ? body.getReader() : null;
@@ -421,7 +490,8 @@ const getStreamedResponse = async (
         // If no reader, fall back to reading the entire response
         const text = await response.text();
         onChunk(text);
-        return;
+        aiResponseContent += text;
+        return { content: aiResponseContent, headers: responseHeaders };
       }
       
       const decoder = new TextDecoder();
@@ -436,9 +506,12 @@ const getStreamedResponse = async (
             if (buffer.trim()) {
               // Check if the remaining buffer has a 'data: ' prefix
               if (buffer.startsWith('data: ')) {
-                onChunk(buffer.substring(6)); // Remove 'data: ' prefix
+                const chunk = buffer.substring(6); // Remove 'data: ' prefix
+                onChunk(chunk);
+                aiResponseContent += chunk;
               } else {
                 onChunk(buffer);
+                aiResponseContent += buffer;
               }
             }
             break;
@@ -465,6 +538,7 @@ const getStreamedResponse = async (
                   
                   if (parsed.response) {
                     onChunk(parsed.response);
+                    aiResponseContent += parsed.response;
                   }
                 } else {
                   // Handle regular JSON responses
@@ -474,18 +548,23 @@ const getStreamedResponse = async (
                     const content = parsed.choices[0].delta.content;
                     if (content) {
                       onChunk(content);
+                      aiResponseContent += content;
                     }
                   } else if (parsed.response) {
                     onChunk(parsed.response);
+                    aiResponseContent += parsed.response;
                   }
                 }
               } catch (e) {
                 // If JSON parsing fails, treat as plain text
                 // But first remove 'data: ' prefix if present
                 if (line.startsWith('data: ')) {
-                  onChunk(line.substring(6)); // Remove 'data: ' prefix
+                  const chunk = line.substring(6); // Remove 'data: ' prefix
+                  onChunk(chunk);
+                  aiResponseContent += chunk;
                 } else {
                   onChunk(line);
+                  aiResponseContent += line;
                 }
               }
             }
@@ -500,13 +579,16 @@ const getStreamedResponse = async (
       // For non-streaming responses, just read as text
       const text = await response.text();
       onChunk(text);
+      aiResponseContent += text;
     }
+    return { content: aiResponseContent, headers: responseHeaders };
   } catch (error) {
     // If streaming fails, try a non-streaming fallback.
     // Don't log here, let the caller handle UI.
     try {
-      const fallbackResponse = await getResponse(config, messages, options);
-      onChunk(fallbackResponse);
+      const fallbackResult = await getResponse(config, messages, options);
+      onChunk(fallbackResult.content);
+      return fallbackResult;
     } catch (fallbackError) {
       // If fallback also fails, throw the most specific error.
       if (fallbackError instanceof AiCommunicationError) {
@@ -527,7 +609,10 @@ const getStreamedResponse = async (
  * @param messages - Conversation messages
  * @returns AI response
  */
-const getResponse = async (config: Config, messages: ChatMessage[], options: ChatSessionOptions = {}): Promise<string> => {
+const getResponse = async (config: Config, messages: ChatMessage[], options: ChatSessionOptions = {}): Promise<AiResponse> => {
+  const responseHeaders: AiResponse['headers'] = {};
+  let aiResponseContent = '';
+
   try {
     // Construct the appropriate endpoint URL based on mode
     const endpointUrl = buildApiUrl(config.apiUrl, options.mode || 'chat');
@@ -544,12 +629,42 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
       })
     });
     
+    // Extract rate limit headers
+    responseHeaders['x-ratelimit-remaining'] = response.headers.get('x-ratelimit-remaining') || undefined;
+    responseHeaders['x-ratelimit-limit'] = response.headers.get('x-ratelimit-limit') || undefined;
+    responseHeaders['x-ratelimit-reset'] = response.headers.get('x-ratelimit-reset') || undefined;
+
     if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        throw new AiCommunicationError(`Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'`);
-      }
       const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
+      
+      try {
+        const errorData = JSON.parse(errorText);
+        if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } catch {
+        // If not JSON, use raw text
+        errorMessage = errorText;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        if (errorMessage.includes('Daily free generation limit exceeded')) {
+          throw new AiCommunicationError(
+            `${errorMessage}\n\nAnda telah mencapai batas generasi harian gratis. Silakan beli token untuk terus menggunakan layanan AI.`
+          );
+        } else if (errorMessage.includes('Insufficient tokens')) {
+          throw new AiCommunicationError(
+            `${errorMessage}\n\nToken Anda tidak mencukupi. Silakan beli lebih banyak token untuk melanjutkan.`
+          );
+        } else {
+          throw new AiCommunicationError(
+            `Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'\nDetails: ${errorMessage}`
+          );
+        }
+      } else {
+        throw new Error(errorMessage);
+      }
     }
     
     // Check if response is JSON or plain text
@@ -565,20 +680,22 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
         data = JSON.parse(text) as { [key: string]: any };
       } catch {
         // If it's not valid JSON, return as is
-        return text;
+        aiResponseContent = text;
+        return { content: aiResponseContent, headers: responseHeaders };
       }
     }
     
     // Handle different response formats
     if (data.choices && data.choices[0]) {
-      return data.choices[0].message?.content || data.choices[0].delta?.content || '';
+      aiResponseContent = data.choices[0].message?.content || data.choices[0].delta?.content || '';
     } else if (data.response) {
-      return data.response;
+      aiResponseContent = data.response;
     } else if (typeof data === 'string') {
-      return data;
+      aiResponseContent = data;
     } else {
-      return JSON.stringify(data);
+      aiResponseContent = JSON.stringify(data);
     }
+    return { content: aiResponseContent, headers: responseHeaders };
   } catch (error) {
     // Let the caller handle the error UI
     throw error;
