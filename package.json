@@ -1,6 +1,6 @@
 {
   "name": "@jekyll-studio/coder-cli",
-  "version": "2.2.2",
+  "version": "2.3.0",
   "type": "commonjs",
   "description": "AI-powered coding assistant - coder-cli (formerly CoDa)",
   "main": "dist/index.js",
