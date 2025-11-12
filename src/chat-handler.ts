@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+import ora from 'ora';
 import type { Readable } from 'stream';
 import chalk from 'chalk';
 import { Config } from './config.js';
@@ -105,76 +105,66 @@ export const startChatSession = async (
     // Add user message to conversation
     messages.push({ role: 'user', content: userInput });
     
-    // Get AI response
-    try {
-      console.log('\nAssistant: ');
-      
-      let aiResponse = '';
-      let isFirstChunk = true;
-      
-      // Show "Thinking..." message
-      process.stdout.write(chalk.gray('Thinking...'));
-
-      if (enableStreaming) {
-        await getStreamedResponse(config, messages, (chunk) => {
-          if (isFirstChunk) {
-            // Clear the "Thinking..." line on first chunk
-            readline.clearLine(process.stdout, 0);
-            readline.cursorTo(process.stdout, 0);
-            isFirstChunk = false;
-          }
-          const processedChunk = processAssistantOutput(chunk);
-          process.stdout.write(processedChunk);
-          aiResponse += chunk;
-        }, options);
-        
-        // If no chunks were received, clear the "Thinking..." message
-        if (isFirstChunk) {
-          readline.clearLine(process.stdout, 0);
-          readline.cursorTo(process.stdout, 0);
-        }
-
-      } else {
-        aiResponse = await getResponse(config, messages, options);
-        // Clear the "Thinking..." line
-        readline.clearLine(process.stdout, 0);
-        readline.cursorTo(process.stdout, 0);
-        
-        const processedResponse = processAssistantOutput(aiResponse);
-        console.log(processedResponse);
-        messages.push({ role: 'assistant', content: aiResponse });
-      }
-      
-      // Check if the response contains code modifications that should be applied
-      if (projectPath && projectAnalysis) {
-        const modifications = parseModificationsFromResponse(aiResponse);
-        if (modifications.length > 0) {
-          console.log(`\nFound ${modifications.length} potential code modifications in the response.`);
-          
-          // Ask user if they want to apply the modifications
-          const shouldApply = await askUserConfirmation(`Apply these ${modifications.length} code modifications?`);
-          if (shouldApply) {
-            const result = await applyModifications(projectPath, modifications);
-            console.log(`\nModification result: ${result.message}`);
+        // Get AI response
+        const spinner = ora('Thinking...').start(); // Start spinner here
+        try {
+          let aiResponse = '';
+          let isFirstChunk = true;
+    
+          if (enableStreaming) {
+            await getStreamedResponse(config, messages, (chunk) => {
+              if (isFirstChunk) {
+                spinner.stop();
+                isFirstChunk = false;
+              }
+              const processedChunk = processAssistantOutput(chunk);
+              process.stdout.write(processedChunk);
+              aiResponse += chunk;
+            }, options);
             
-            if (result.errors && result.errors.length > 0) {
-              console.error('Errors during modification:', result.errors.join('\n'));
+            if (isFirstChunk) { // If no chunks were received, stop the spinner
+              spinner.stop();
+            }
+    
+          } else {
+            aiResponse = await getResponse(config, messages, options);
+            spinner.stop();
+            
+            const processedResponse = processAssistantOutput(aiResponse);
+            console.log(processedResponse);
+            messages.push({ role: 'assistant', content: aiResponse });
+          }
+          
+          // Check if the response contains code modifications that should be applied
+          if (projectPath && projectAnalysis) {
+            const modifications = parseModificationsFromResponse(aiResponse);
+            if (modifications.length > 0) {
+              console.log(`\nFound ${modifications.length} potential code modifications in the response.`);
+              
+              // Ask user if they want to apply the modifications
+              const shouldApply = await askUserConfirmation(`Apply these ${modifications.length} code modifications?`);
+              if (shouldApply) {
+                const result = await applyModifications(projectPath, modifications);
+                console.log(`\nModification result: ${result.message}`);
+                
+                if (result.errors && result.errors.length > 0) {
+                  console.error('Errors during modification:', result.errors.join('\n'));
+                }
+              }
             }
           }
+        } catch (error) {
+          spinner.stop(); // Stop spinner on error
+          if (error instanceof AiCommunicationError) {
+            console.error(chalk.red(error.message));
+          } else {
+            console.error(chalk.red('Error getting AI response:'), error);
+          }
         }
-      }
-    } catch (error) {
-      if (error instanceof AiCommunicationError) {
-        console.error(chalk.red(error.message));
-      } else {
-        console.error(chalk.red('Error getting AI response:'), error);
-      }
-    }
-    
-    // Continue the chat loop
-    await chatLoop();
-  };
-  
+        
+        // Continue the chat loop
+        await chatLoop();
+      };  
   // Start the chat loop
   await chatLoop();
 };
