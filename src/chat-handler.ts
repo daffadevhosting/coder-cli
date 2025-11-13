@@ -440,6 +440,7 @@ const getStreamedResponse = async (
 ): Promise<AiResponse> => {
   let aiResponseContent = '';
   const responseHeaders: AiResponse['headers'] = {};
+  let spinner: ora.Ora | undefined; // Declare spinner here
 
   try {
     // Construct the appropriate endpoint URL based on mode
@@ -460,6 +461,8 @@ const getStreamedResponse = async (
     } else {
       console.log(chalk.yellow('Warning: API key not found. Run `coder-cli init` to configure it.'));
     }
+
+    spinner = ora('AI is streaming response...').start(); // Start spinner here
 
     const response = await fetch(endpointUrl, {
       method: 'POST',
@@ -504,6 +507,9 @@ const getStreamedResponse = async (
         const text = await response.text();
         onChunk(text);
         aiResponseContent += text;
+        if (spinner) {
+          spinner.stop();
+        }
         return { content: aiResponseContent, headers: responseHeaders };
       }
       
@@ -513,13 +519,16 @@ const getStreamedResponse = async (
         const text = await response.text();
         onChunk(text);
         aiResponseContent += text;
+        if (spinner) {
+          spinner.stop();
+        }
         return { content: aiResponseContent, headers: responseHeaders };
       }
       
       const decoder = new TextDecoder();
       let buffer = '';
       
-      try {
+      try { // Added try-catch around the while loop
         while (true) {
           const { done, value } = await reader.read();
           
@@ -592,6 +601,10 @@ const getStreamedResponse = async (
             }
           }
         }
+      } catch (streamProcessingError) { // Catch errors from within the while loop
+        console.error(chalk.red('\nError during AI stream processing:'), streamProcessingError);
+        // Re-throw to be caught by the outer try-catch of getStreamedResponse
+        throw streamProcessingError;
       } finally {
         if (reader.releaseLock) {
           reader.releaseLock();
@@ -603,8 +616,15 @@ const getStreamedResponse = async (
       onChunk(text);
       aiResponseContent += text;
     }
+    if (spinner) {
+      spinner.stop();
+    }
     return { content: aiResponseContent, headers: responseHeaders };
   } catch (error) {
+    // Ensure spinner is stopped on error
+    if (spinner) {
+      spinner.stop();
+    }
     // If streaming fails, try a non-streaming fallback.
     // Don't log here, let the caller handle UI.
     try {
