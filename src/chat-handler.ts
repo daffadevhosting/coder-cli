@@ -176,6 +176,7 @@ export const startChatSession = async (
         
               if (enableStreaming) {
                 aiResponse = await getStreamedResponse(config, messages, (chunk) => {
+                  console.log(chalk.dim(`[DEBUG] Received chunk: "${chunk.substring(0, 50)}..."`)); // Log received chunk
                   try {
                     if (isFirstChunk) {
                       spinner.succeed('AI responded:');
@@ -184,18 +185,21 @@ export const startChatSession = async (
                     let processedChunk = chunk;
                     try {
                       processedChunk = processAssistantOutput(chunk);
+                      if (processedChunk !== chunk) { // Only log if processing actually changed the chunk
+                        console.log(chalk.dim(`[DEBUG] Processed chunk: "${processedChunk.substring(0, 50)}..."`));
+                      }
                     } catch (processingError) {
                       console.error(chalk.red('\nError during assistant output processing:'), processingError);
-                      // Fallback to raw chunk if processing fails
+                      console.log(chalk.yellow('[WARN] Falling back to raw chunk due to processing error.'));
+                      // processedChunk already defaults to raw chunk
                     }
                     process.stdout.write(processedChunk);
                     aiResponseContent += chunk;
                   } catch (chunkError) {
                     spinner.fail('Error processing AI response chunk.');
                     console.error(chalk.red('\nError in AI response chunk processing:'), chunkError);
-                    // Stop further processing of chunks if an error occurs in the output stream
-                    // This might prevent further crashes if the output stream is the issue.
-                    return; 
+                    // Do not return, try to process subsequent chunks if possible
+                    // The error is logged, and the main loop will continue.
                   }
                 }, options);
                 
@@ -478,6 +482,8 @@ const getStreamedResponse = async (
     }
 
     spinner = ora('AI is thinking...').start(); // Start spinner here
+    console.log(chalk.dim(`[DEBUG] Sending request to: ${endpointUrl}`));
+    console.log(chalk.dim(`[DEBUG] Request body (messages count): ${messages.length}`));
 
     const response = await fetch(endpointUrl, {
       method: 'POST',
@@ -489,28 +495,14 @@ const getStreamedResponse = async (
       signal: controller.signal
     });
 
-    clearTimeout(timeoutId);
-    
-    // Extract rate limit headers
-    responseHeaders['x-ratelimit-remaining'] = response.headers.get('x-ratelimit-remaining') || undefined;
-    responseHeaders['x-ratelimit-limit'] = response.headers.get('x-ratelimit-limit') || undefined;
-    responseHeaders['x-ratelimit-reset'] = response.headers.get('x-ratelimit-reset') || undefined;
-
     if (!response.ok) {
       const errorText = await response.text();
+      console.error(chalk.red(`[DEBUG] API response not OK. Status: ${response.status}, Text: ${errorText.substring(0, 100)}...`));
       let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
-      try {
-        // Try to parse the error response as JSON
-        const errorData = JSON.parse(errorText);
-        if (errorData.error) {
-          errorMessage = errorData.error;
-        }
-      } catch {
-        // Not a JSON error, use the raw text. The backend might send plain text errors.
-      }
-      // The backend now sends user-friendly messages, so we can throw them directly.
+      // ... error handling ...
       throw new AiCommunicationError(errorMessage);
     }
+    console.log(chalk.dim(`[DEBUG] API response OK. Content-Type: ${response.headers.get('content-type')}`));
     
     // Check if the response is actually a streaming response
     if (response.headers.get('content-type')?.includes('text/event-stream') || 
