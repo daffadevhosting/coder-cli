@@ -142,85 +142,81 @@ export const startChatSession = async (
   
   // Main chat loop
   const chatLoop = async (): Promise<void> => {
-    const userInput = await new Promise<string>((resolve) => {
-      rl.question('\nYou: ', resolve);
-    });
-    
-    if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-      console.log('Goodbye!');
-      rl.close();
-      return;
-    }
-    
-    // Add user message to conversation
-    messages.push({ role: 'user', content: userInput });
-    
-        // Get AI response
-        const spinner = ora('Thinking...').start(); // Start spinner here
+    try {
+      const userInput = await new Promise<string>((resolve) => {
+        rl.question(chalk.bold('\nYou: '), resolve);
+      });
+      
+      if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
+        console.log('Goodbye!');
+        rl.close();
+        return;
+      }
+      
+      messages.push({ role: 'user', content: userInput });
+      
+      const spinner = ora('AI is thinking...').start();
+      try {
         let aiResponse: AiResponse;
-        try {
-          let aiResponseContent = '';
-          let isFirstChunk = true;
-    
-          if (enableStreaming) {
-            aiResponse = await getStreamedResponse(config, messages, (chunk) => {
-              if (isFirstChunk) {
-                spinner.stop();
-                isFirstChunk = false;
-              }
-              const processedChunk = processAssistantOutput(chunk);
-              process.stdout.write(processedChunk);
-              aiResponseContent += chunk;
-            }, options);
-            
-            if (isFirstChunk) { // If no chunks were received, stop the spinner
-              spinner.stop();
+        let aiResponseContent = '';
+        let isFirstChunk = true;
+  
+        if (enableStreaming) {
+          aiResponse = await getStreamedResponse(config, messages, (chunk) => {
+            if (isFirstChunk) {
+              spinner.succeed('AI responded:');
+              isFirstChunk = false;
             }
-            aiResponse.content = aiResponseContent; // Set the full content after streaming
-    
-          } else {
-            aiResponse = await getResponseWithRetry(config, messages, options);
+            const processedChunk = processAssistantOutput(chunk);
+            process.stdout.write(processedChunk);
+            aiResponseContent += chunk;
+          }, options);
+          
+          if (isFirstChunk) {
             spinner.stop();
-            
-            const processedResponse = processAssistantOutput(aiResponse.content);
-            console.log(processedResponse);
           }
-          
-          messages.push({ role: 'assistant', content: aiResponse.content });
-
-          // Display token warnings after a successful response
-          displayTokenWarnings(aiResponse.headers);
-          
-          // Check if the response contains code modifications that should be applied
-          if (projectPath && projectAnalysis) {
-            const modifications = parseModificationsFromResponse(aiResponse.content);
-            if (modifications.length > 0) {
-              console.log(`\nFound ${modifications.length} potential code modifications in the response.`);
-              
-              // Ask user if they want to apply the modifications
-              const shouldApply = await askUserConfirmation(rl, `Apply these ${modifications.length} code modifications?`);
-              if (shouldApply) {
-                const result = await applyModifications(projectPath, modifications);
-                console.log(`\nModification result: ${result.message}`);
-                
-                if (result.errors && result.errors.length > 0) {
-                  console.error('Errors during modification:', result.errors.join('\n'));
-                }
-              }
-            }
-          }
-        } catch (error) {
-          spinner.stop(); // Stop spinner on error
-          if (error instanceof AiCommunicationError) {
-            console.error(chalk.red(error.message));
-          } else {
-            console.error(chalk.red('Error getting AI response:'), error);
-          }
+          aiResponse.content = aiResponseContent;
+  
+        } else {
+          aiResponse = await getResponseWithRetry(config, messages, options);
+          spinner.succeed('AI responded:');
+          const processedResponse = processAssistantOutput(aiResponse.content);
+          console.log(processedResponse);
         }
         
-        // Continue the chat loop
-        await chatLoop();
-      };  
+        messages.push({ role: 'assistant', content: aiResponse.content });
+        displayTokenWarnings(aiResponse.headers);
+        
+        if (projectPath && projectAnalysis) {
+          const modifications = parseModificationsFromResponse(aiResponse.content);
+          if (modifications.length > 0) {
+            console.log(`\nFound ${modifications.length} potential code modifications.`);
+            const shouldApply = await askUserConfirmation(rl, `Apply these ${modifications.length} modifications?`);
+            if (shouldApply) {
+              const result = await applyModifications(projectPath, modifications);
+              console.log(`\n${result.message}`);
+              if (result.errors && result.errors.length > 0) {
+                console.error('Errors during modification:', result.errors.join('\n'));
+              }
+            }
+          }
+        }
+      } catch (error) {
+        spinner.fail('An error occurred.');
+        if (error instanceof AiCommunicationError) {
+          console.error(chalk.red(`\n[AI Communication Error]\n${error.message}`));
+        } else {
+          console.error(chalk.red('\nAn unexpected error occurred:'), error);
+        }
+      }
+      
+      await chatLoop();
+
+    } catch (loopError) {
+      console.error(chalk.red.bold('\nFATAL ERROR IN CHAT LOOP: The application will now exit.'), loopError);
+      process.exit(1);
+    }
+  };  
   // Start the chat loop
   await chatLoop();
 };
@@ -468,35 +464,18 @@ const getStreamedResponse = async (
 
     if (!response.ok) {
       const errorText = await response.text();
-      let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
-      
+      let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
       try {
+        // Try to parse the error response as JSON
         const errorData = JSON.parse(errorText);
         if (errorData.error) {
           errorMessage = errorData.error;
         }
       } catch {
-        // If not JSON, use raw text
-        errorMessage = errorText;
+        // Not a JSON error, use the raw text. The backend might send plain text errors.
       }
-
-      if (response.status === 401 || response.status === 403) {
-        if (errorMessage.includes('Daily free generation limit exceeded')) {
-          throw new AiCommunicationError(
-            `${errorMessage}\n\nAnda telah mencapai batas generasi harian gratis. Silakan beli token untuk terus menggunakan layanan AI.`
-          );
-        } else if (errorMessage.includes('Insufficient tokens')) {
-          throw new AiCommunicationError(
-            `${errorMessage}\n\nToken Anda tidak mencukupi. Silakan beli lebih banyak token untuk melanjutkan.`
-          );
-        } else {
-          throw new AiCommunicationError(
-            `Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'\nDetails: ${errorMessage}`
-          );
-        }
-      } else {
-        throw new Error(errorMessage);
-      }
+      // The backend now sends user-friendly messages, so we can throw them directly.
+      throw new AiCommunicationError(errorMessage);
     }
     
     // Check if the response is actually a streaming response
@@ -669,35 +648,18 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
 
     if (!response.ok) {
       const errorText = await response.text();
-      let errorMessage = `API request failed: ${response.status} ${response.statusText}`;
-      
+      let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
       try {
+        // Try to parse the error response as JSON
         const errorData = JSON.parse(errorText);
         if (errorData.error) {
           errorMessage = errorData.error;
         }
       } catch {
-        // If not JSON, use raw text
-        errorMessage = errorText;
+        // Not a JSON error, use the raw text. The backend might send plain text errors.
       }
-
-      if (response.status === 401 || response.status === 403) {
-        if (errorMessage.includes('Daily free generation limit exceeded')) {
-          throw new AiCommunicationError(
-            `${errorMessage}\n\nAnda telah mencapai batas generasi harian gratis. Silakan beli token untuk terus menggunakan layanan AI.`
-          );
-        } else if (errorMessage.includes('Insufficient tokens')) {
-          throw new AiCommunicationError(
-            `${errorMessage}\n\nToken Anda tidak mencukupi. Silakan beli lebih banyak token untuk melanjutkan.`
-          );
-        } else {
-          throw new AiCommunicationError(
-            `Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'\nDetails: ${errorMessage}`
-          );
-        }
-      } else {
-        throw new Error(errorMessage);
-      }
+      // The backend now sends user-friendly messages, so we can throw them directly.
+      throw new AiCommunicationError(errorMessage);
     }
     
     // Check if response is JSON or plain text
