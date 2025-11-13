@@ -214,7 +214,7 @@ export const startChatSession = async (
 
     } catch (loopError) {
       console.error(chalk.red.bold('\nFATAL ERROR IN CHAT LOOP: The application will now exit.'), loopError);
-      process.exit(1);
+      return;
     }
   };  
   // Start the chat loop
@@ -371,7 +371,7 @@ export const startRedesignSession = async (config: Config, url: string): Promise
     } else {
       console.error(chalk.red('Error during re-design session:'), error);
     }
-    process.exit(1);
+  return;
   }
 };
 
