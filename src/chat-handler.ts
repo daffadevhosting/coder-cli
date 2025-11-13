@@ -326,72 +326,31 @@ const getStreamedResponse = async (
       try { // Added try-catch around the while loop
         while (true) {
           const { done, value } = await reader.read();
-
           if (done) {
-            // Process any remaining buffer
-            if (buffer.trim()) {
-              // Check if the remaining buffer has a 'data: ' prefix
-              if (buffer.startsWith('data: ')) {
-                const chunk = buffer.substring(6); // Remove 'data: ' prefix
-                onChunk(chunk);
-                aiResponseContent += chunk;
-              } else {
-                onChunk(buffer);
-                aiResponseContent += buffer;
-              }
-            }
             break;
           }
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Process complete lines in the buffer
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || ''; // Keep the incomplete line in buffer
+          const events = buffer.split('\n');
+          buffer = events.pop() || ''; // Keep last partial event in buffer
 
-          for (const line of lines) {
-            if (line.trim()) {
+          for (const event of events) {
+            if (event.startsWith('data:')) {
+              const dataStr = event.substring(5).trim();
+              if (dataStr === '[DONE]') {
+                continue;
+              }
               try {
-                // Handle SSE format (data: ...)
-                if (line.startsWith('data: ')) {
-                  const dataStr = line.substring(6); // Remove 'data: ' prefix
-
-                  if (dataStr === '[DONE]') {
-                    break;
-                  }
-
-                  const parsed: { [key: string]: any } = JSON.parse(dataStr);
-
-                  if (parsed.response) {
-                    onChunk(parsed.response);
-                    aiResponseContent += parsed.response;
-                  }
-                } else {
-                  // Handle regular JSON responses
-                  const parsed: { [key: string]: any } = JSON.parse(line);
-
-                  if (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) {
-                    const content = parsed.choices[0].delta.content;
-                    if (content) {
-                      onChunk(content);
-                      aiResponseContent += content;
-                    }
-                  } else if (parsed.response) {
-                    onChunk(parsed.response);
-                    aiResponseContent += parsed.response;
-                  }
+                const parsed = JSON.parse(dataStr);
+                const content = parsed.response || (parsed.choices && parsed.choices[0].delta.content) || '';
+                if (content) {
+                  onChunk(content);
+                  aiResponseContent += content;
                 }
               } catch (e) {
-                // If JSON parsing fails, treat as plain text
-                // But first remove 'data: ' prefix if present
-                if (line.startsWith('data: ')) {
-                  const chunk = line.substring(6); // Remove 'data: ' prefix
-                  onChunk(chunk);
-                  aiResponseContent += chunk;
-                } else {
-                  onChunk(line);
-                  aiResponseContent += line;
-                }
+                // Ignore JSON parse errors, likely due to incomplete event data.
+                // The incomplete part will be in the buffer for the next iteration.
               }
             }
           }
@@ -663,22 +622,8 @@ const isUrl = (str: string): boolean => {
  * @returns Processed output with color coding
  */
 const processAssistantOutput = (output: string): string => {
-  // Clean up SSE markers and other artifacts from the raw output
-  let cleanedOutput = output;
-
-  // Remove SSE markers like 'data: {"response":"..."}' and '[DONE]' markers
-  cleanedOutput = cleanedOutput
-    .replace(/data: \{"response":"([^"]|\\\")*"\}/g, (match) => {
-      // Extract the content from the response field
-      try {
-        const parsed = JSON.parse(match.substring(6)); // Remove "data: " prefix
-        return parsed.response || '';
-      } catch {
-        return match; // Return original if parsing fails
-      }
-    })
-    .replace(/\x5BDONE\]/g, '') // Remove [DONE] markers
-    .replace(/\\n/g, '\n'); // Convert escaped newlines
+  // Convert escaped newlines, which might still be present in the content
+  const cleanedOutput = output.replace(/\\n/g, '\n');
 
   // We'll split the cleaned output by lines and color-code based on patterns
   const lines = cleanedOutput.split('\n');
