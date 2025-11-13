@@ -133,13 +133,21 @@ export const startChatSession = async (
   }
   
     // If not in script mode, proceed with interactive chat loop
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
     
-    try { // Added try block
-      console.log('\nAI Assistant is ready! Type your message (or "exit" to quit):');
+      rl.on('error', (err) => {
+        console.error(chalk.red('\nReadline interface error:'), err);
+        // It's crucial to close the readline interface if an error occurs
+        // to prevent resource leaks or further issues.
+        rl.close();
+        // If this error is critical, we might want to re-throw or exit.
+        // For now, just log and close. The unhandledRejection handler will catch if it's a promise.
+      });
+      
+      try { // Added try block      console.log('\nAI Assistant is ready! Type your message (or "exit" to quit):');
       
       // Main chat loop
       const chatLoop = async (): Promise<void> => {
