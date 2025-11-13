@@ -132,100 +132,102 @@ export const startChatSession = async (
     return; // Exit after generating script, no interactive chat
   }
   
-  // If not in script mode, proceed with interactive chat loop
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-  
-  console.log('\nAI Assistant is ready! Type your message (or "exit" to quit):');
-  
-  // Main chat loop
-  const chatLoop = async (): Promise<void> => {
-    try {
-      const userInput = await new Promise<string>((resolve) => {
-        rl.question(chalk.bold('\nYou: '), resolve);
-      });
+    // If not in script mode, proceed with interactive chat loop
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    
+    try { // Added try block
+      console.log('\nAI Assistant is ready! Type your message (or "exit" to quit):');
       
-      if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-        console.log('Goodbye!');
-        rl.close();
-        return;
-      }
-      
-      messages.push({ role: 'user', content: userInput });
-      
-      const spinner = ora('AI is thinking...').start();
-      try {
-        let aiResponse: AiResponse;
-        let aiResponseContent = '';
-        let isFirstChunk = true;
-  
-        if (enableStreaming) {
-          aiResponse = await getStreamedResponse(config, messages, (chunk) => {
-            try {
-              if (isFirstChunk) {
-                spinner.succeed('AI responded:');
-                isFirstChunk = false;
-              }
-              const processedChunk = processAssistantOutput(chunk);
-              process.stdout.write(processedChunk);
-              aiResponseContent += chunk;
-            } catch (chunkError) {
-              spinner.fail('Error processing AI response chunk.');
-              console.error(chalk.red('\nError in AI response chunk processing:'), chunkError);
-              // Optionally, re-throw or handle more gracefully if needed
-            }
-          }, options);
+      // Main chat loop
+      const chatLoop = async (): Promise<void> => {
+        try {
+          const userInput = await new Promise<string>((resolve) => {
+            rl.question(chalk.bold('\nYou: '), resolve);
+          });
           
-          if (isFirstChunk) {
-            spinner.stop();
+          if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
+            console.log('Goodbye!');
+            return;
           }
-          aiResponse.content = aiResponseContent;
-  
-        } else {
-          aiResponse = await getResponseWithRetry(config, messages, options);
-          spinner.succeed('AI responded:');
-          const processedResponse = processAssistantOutput(aiResponse.content);
-          console.log(processedResponse);
-        }
-        
-        messages.push({ role: 'assistant', content: aiResponse.content });
-        displayTokenWarnings(aiResponse.headers);
-        
-        if (projectPath && projectAnalysis) {
-          const modifications = parseModificationsFromResponse(aiResponse.content);
-          if (modifications.length > 0) {
-            console.log(`\nFound ${modifications.length} potential code modifications.`);
-            const shouldApply = await askUserConfirmation(rl, `Apply these ${modifications.length} modifications?`);
-            if (shouldApply) {
-              const result = await applyModifications(projectPath, modifications);
-              console.log(`\n${result.message}`);
-              if (result.errors && result.errors.length > 0) {
-                console.error('Errors during modification:', result.errors.join('\n'));
+          
+          messages.push({ role: 'user', content: userInput });
+          
+          const spinner = ora('AI is thinking...').start();
+          try {
+            let aiResponse: AiResponse;
+            let aiResponseContent = '';
+            let isFirstChunk = true;
+      
+            if (enableStreaming) {
+              aiResponse = await getStreamedResponse(config, messages, (chunk) => {
+                try {
+                  if (isFirstChunk) {
+                    spinner.succeed('AI responded:');
+                    isFirstChunk = false;
+                  }
+                  const processedChunk = processAssistantOutput(chunk);
+                  process.stdout.write(processedChunk);
+                  aiResponseContent += chunk;
+                } catch (chunkError) {
+                  spinner.fail('Error processing AI response chunk.');
+                  console.error(chalk.red('\nError in AI response chunk processing:'), chunkError);
+                  // Optionally, re-throw or handle more gracefully if needed
+                }
+              }, options);
+              
+              if (isFirstChunk) {
+                spinner.stop();
+              }
+              aiResponse.content = aiResponseContent;
+      
+            } else {
+              aiResponse = await getResponseWithRetry(config, messages, options);
+              spinner.succeed('AI responded:');
+              const processedResponse = processAssistantOutput(aiResponse.content);
+              console.log(processedResponse);
+            }
+            
+            messages.push({ role: 'assistant', content: aiResponse.content });
+            displayTokenWarnings(aiResponse.headers);
+            
+            if (projectPath && projectAnalysis) {
+              const modifications = parseModificationsFromResponse(aiResponse.content);
+              if (modifications.length > 0) {
+                console.log(`\nFound ${modifications.length} potential code modifications.`);
+                const shouldApply = await askUserConfirmation(rl, `Apply these ${modifications.length} modifications?`);
+                if (shouldApply) {
+                  const result = await applyModifications(projectPath, modifications);
+                  console.log(`\n${result.message}`);
+                  if (result.errors && result.errors.length > 0) {
+                    console.error('Errors during modification:', result.errors.join('\n'));
+                  }
+                }
               }
             }
+          } catch (error) {
+            spinner.fail('An error occurred.');
+            if (error instanceof AiCommunicationError) {
+              console.error(chalk.red(`\n[AI Communication Error]\n${error.message}`));
+            } else {
+              console.error(chalk.red('\nAn unexpected error occurred:'), error);
+            }
           }
+          
+          await chatLoop();
+    
+        } catch (loopError) {
+          console.error(chalk.red.bold('\nFATAL ERROR IN CHAT LOOP: The application will now exit.'), loopError);
+          return;
         }
-      } catch (error) {
-        spinner.fail('An error occurred.');
-        if (error instanceof AiCommunicationError) {
-          console.error(chalk.red(`\n[AI Communication Error]\n${error.message}`));
-        } else {
-          console.error(chalk.red('\nAn unexpected error occurred:'), error);
-        }
-      }
-      
+      };  
+      // Start the chat loop
       await chatLoop();
-
-    } catch (loopError) {
-      console.error(chalk.red.bold('\nFATAL ERROR IN CHAT LOOP: The application will now exit.'), loopError);
-      return;
-    }
-  };  
-  // Start the chat loop
-  await chatLoop();
-};
+    } finally { // Added finally block
+      rl.close();
+    }};
 
 /**
  * Display warnings related to API token usage.
