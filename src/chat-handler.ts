@@ -281,10 +281,21 @@ export const startRedesignSession = async (config: Config, url: string): Promise
 
     if (!response.ok) {
       spinner.stop();
-      if (response.status === 401 || response.status === 403) {
-        throw new AiCommunicationError(`Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'`);
-      }
       const errorText = await response.text();
+      if (response.status === 401 || response.status === 403) {
+        // Check if the error message indicates daily limit exceeded
+        if (errorText.includes('Daily free generation limit exceeded')) {
+          throw new AiCommunicationError(
+            `${errorText}\n\nYou have reached your daily free generation limit. Please purchase tokens to continue using AI services..`
+          );
+        } else if (errorText.includes('Insufficient tokens')) {
+          throw new AiCommunicationError(
+            `${errorText}\n\nYour tokens are insufficient. Please purchase more tokens to continue..`
+          );
+        } else {
+          throw new AiCommunicationError(`Authentication failed. API key is missing or invalid.\nPlease check your configuration using 'coder-cli init'\nDetails: ${errorText}`);
+        }
+      }
       throw new Error(`API request failed: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
