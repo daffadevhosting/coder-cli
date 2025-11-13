@@ -272,8 +272,6 @@ const getStreamedResponse = async (
     }
 
     spinner = ora('AI is thinking...').start(); // Start spinner here
-    console.log(chalk.dim(`[DEBUG] Sending request to: ${endpointUrl}`));
-    console.log(chalk.dim(`[DEBUG] Request body (messages count): ${messages.length}`));
 
     const response = await fetch(endpointUrl, {
       method: 'POST',
@@ -287,12 +285,10 @@ const getStreamedResponse = async (
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(chalk.red(`[DEBUG] API response not OK. Status: ${response.status}, Text: ${errorText.substring(0, 100)}...`));
       let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
       // ... error handling ...
       throw new AiCommunicationError(errorMessage);
     }
-    console.log(chalk.dim(`[DEBUG] API response OK. Content-Type: ${response.headers.get('content-type')}`));
 
     // Check if the response is actually a streaming response
     if (response.headers.get('content-type')?.includes('text/event-stream') ||
@@ -885,7 +881,6 @@ export async function startChatSession(
 
         if (enableStreaming) {
           aiResponse = await getStreamedResponse(config, messages, (chunk) => {
-            // console.log(chalk.dim(`[DEBUG] Received chunk: "${chunk.substring(0, 50)}..."`)); // Debug log
             try {
               if (isFirstChunk) {
                 spinner.succeed('AI responded:');
@@ -894,9 +889,6 @@ export async function startChatSession(
               let processedChunk = chunk;
               try {
                 processedChunk = processAssistantOutput(chunk);
-                // if (processedChunk !== chunk) { // Only log if processing actually changed the chunk
-                //   console.log(chalk.dim(`[DEBUG] Processed chunk: "${processedChunk.substring(0, 50)}..."`)); // Debug log
-                // }
               } catch (processingError) {
                 console.error(chalk.red('\\nError during assistant output processing:'), processingError);
                 console.log(chalk.yellow('[WARN] Falling back to raw chunk due to processing error.'));
