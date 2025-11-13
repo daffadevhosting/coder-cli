@@ -462,7 +462,7 @@ const getStreamedResponse = async (
       console.log(chalk.yellow('Warning: API key not found. Run `coder-cli init` to configure it.'));
     }
 
-    spinner = ora('AI is streaming response...').start(); // Start spinner here
+    spinner = ora('AI is thinking...').start(); // Start spinner here
 
     const response = await fetch(endpointUrl, {
       method: 'POST',
