@@ -215,17 +215,17 @@ export const startChatSession = async (
                 }
               }
             }
-          } catch (error) {
-            spinner.fail('An error occurred.');
-            if (error instanceof AiCommunicationError) {
-              console.error(chalk.red(`\n[AI Communication Error]\n${error.message}`));
-            } else {
-              console.error(chalk.red('\nAn unexpected error occurred:'), error);
-            }
-          }
-          
-          await chatLoop();
-    
+                  } catch (error) {
+                    spinner.fail('An error occurred.');
+                    if (error instanceof AiCommunicationError) {
+                      console.error(chalk.red(`\n[AI Communication Error]\n${error.message}`));
+                    } else {
+                      console.error(chalk.red('\nAn unexpected error occurred:'), error);
+                    }
+                  }
+                  console.log('DEBUG: After AI response processing (and potential error handling).');
+                  
+                  await chatLoop();    
         } catch (loopError) {
           console.error(chalk.red.bold('\nFATAL ERROR IN CHAT LOOP: The application will now exit.'), loopError);
           return;
