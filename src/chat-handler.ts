@@ -824,37 +824,46 @@ export async function startChatSession(
         const aiResponse = await getResponseWithRetry(config, messages, options);
         spinner.succeed('AI responded:');
 
-        // Parse the response content like in @chat.js
-        let finalAiMessage = '';
-        if (aiResponse.content) {
-            const lines = aiResponse.content.split('\n');
-            for (const line of lines) {
-                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                    const jsonString = line.substring(6);
+        let usageInfo: { prompt_tokens: number, completion_tokens: number, total_tokens: number } | null = null;
+        let messageToDisplay = aiResponse.content;
+
+        try {
+            let currentData = JSON.parse(messageToDisplay);
+
+            // Loop to handle nested 'response' fields that are stringified JSON
+            while (true) {
+                if (currentData.usage) {
+                    usageInfo = currentData.usage;
+                }
+
+                if (typeof currentData.response === 'string') {
+                    messageToDisplay = currentData.response;
                     try {
-                        const parsed = JSON.parse(jsonString);
-                        if (parsed.response) {
-                            finalAiMessage += parsed.response;
-                        } else if (parsed.choices && parsed.choices[0].delta.content) {
-                            finalAiMessage += parsed.choices[0].delta.content;
-                        }
+                        // See if the nested response is also JSON
+                        currentData = JSON.parse(messageToDisplay);
                     } catch (e) {
-                        // In case of malformed JSON, we might just append the raw string part
-                        finalAiMessage += jsonString;
+                        // It's not JSON, so we've found the final message
+                        break;
                     }
+                } else {
+                    // 'response' is not a string or doesn't exist, we're done
+                    messageToDisplay = JSON.stringify(currentData); // Fallback to stringifying the object
+                    break;
                 }
             }
+        } catch (e) {
+            // Initial content was not a JSON string, so we'll just display it as is.
+        }
+
+        const processedResponse = processAssistantOutput(messageToDisplay);
+        console.log(chalk.green('AI:'), processedResponse);
+
+        if (usageInfo) {
+            console.log(chalk.yellow(`[Tokens] Total: ${usageInfo.total_tokens} (Prompt: ${usageInfo.prompt_tokens}, Completion: ${usageInfo.completion_tokens})`));
         }
         
-        // If parsing yields nothing, use the raw content as a fallback
-        if (!finalAiMessage && aiResponse.content) {
-            finalAiMessage = aiResponse.content;
-        }
-
-        const processedResponse = processAssistantOutput(finalAiMessage);
-        console.log(processedResponse);
-
-        messages.push({ role: 'assistant', content: finalAiMessage });
+        // Push the clean message to history
+        messages.push({ role: 'assistant', content: messageToDisplay });
         displayTokenWarnings(aiResponse.headers);
 
         // Handle code modifications (same as before)
