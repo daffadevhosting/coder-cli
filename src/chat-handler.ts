@@ -444,14 +444,20 @@ const getStreamedResponse = async (
     const timeout = config.timeout || 30000; // Default to 30 seconds
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    };
+    if (config.apiKey) {
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
+    } else {
+      console.log(chalk.yellow('Warning: API key not found. Run `coder-cli init` to configure it.'));
+    }
+
     const response = await fetch(endpointUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
-      },
+      headers,
       body: JSON.stringify({ 
         messages,
         mode: options.mode || 'chat'
@@ -644,12 +650,18 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
     // Construct the appropriate endpoint URL based on mode
     const endpointUrl = buildApiUrl(config.apiUrl, options.mode || 'chat');
 
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (config.apiKey) {
+      headers['Authorization'] = `Bearer ${config.apiKey}`;
+    } else {
+      console.log(chalk.yellow('Warning: API key not found. Run `coder-cli init` to configure it.'));
+    }
+
     const response = await fetch(endpointUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
-      },
+      headers,
       body: JSON.stringify({ 
         messages,
         mode: options.mode || 'chat'
