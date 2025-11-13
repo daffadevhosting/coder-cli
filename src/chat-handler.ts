@@ -484,7 +484,11 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
     if (data.choices && data.choices[0]) {
       aiResponseContent = data.choices[0].message?.content || data.choices[0].delta?.content || '';
     } else if (data.response) {
-      aiResponseContent = data.response;
+      if (typeof data.response === 'string') {
+        aiResponseContent = data.response;
+      } else {
+        aiResponseContent = JSON.stringify(data.response);
+      }
     } else if (typeof data === 'string') {
       aiResponseContent = data;
     } else {
