@@ -822,7 +822,7 @@ export async function startChatSession(
       try {
         // Always use the non-streaming response function
         const aiResponse = await getResponseWithRetry(config, messages, options);
-        spinner.succeed('AI responded:');
+        spinner.succeed(' ');
 
         let usageInfo: { prompt_tokens: number, completion_tokens: number, total_tokens: number } | null = null;
         let messageToDisplay = aiResponse.content;
@@ -856,7 +856,7 @@ export async function startChatSession(
         }
 
         const processedResponse = processAssistantOutput(messageToDisplay);
-        console.log(chalk.green('AI:'), processedResponse);
+        console.log(chalk.green('\n[^_^] AI:'), processedResponse);
 
         if (usageInfo) {
             console.log(chalk.yellow(`[Tokens] Total: ${usageInfo.total_tokens} (Prompt: ${usageInfo.prompt_tokens}, Completion: ${usageInfo.completion_tokens})`));
