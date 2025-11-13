@@ -721,38 +721,26 @@ export const buildApiUrl = (baseUrl: string, mode: string): string => {
 export async function startChatSession(
   config: Config,
   contextPath?: string,
-  enableStreaming: boolean = true,
+  enableStreaming: boolean = true, // Note: enableStreaming will be ignored in favor of a more stable approach
   options: ChatSessionOptions = {}
 ): Promise<void> {
   console.log('Starting AI coding assistant session...');
-  let isReadlineActive: boolean = true; // Flag to track readline interface state
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: chalk.bold('\nYou: ')
-  });
-
-  rl.on('error', (err) => {
-    console.error(chalk.red('\nReadline interface error:'), err);
-    isReadlineActive = false;
-    rl.close();
-  });
-
-  rl.on('close', () => {
-    console.log(chalk.yellow('\nChat session ended. Goodbye!'));
-    isReadlineActive = false;
-    // process.exit(0); // Removing direct process.exit to allow outer error handling
-  });
+  
+  // Try to get ExitPromptError class for graceful exit handling
+  let ExitPromptError;
+  try {
+    ExitPromptError = require('@inquirer/core').errors.ExitPromptError;
+  } catch (e) {
+    ExitPromptError = null;
+  }
 
   try {
-    // 1. Prepare context based on the provided path
+    // 1. Prepare context (same as before)
     let projectAnalysis: ProjectAnalysisResult | null = null;
     let projectPath: string | null = null;
 
     if (contextPath) {
       console.log(`\nLoading context from: ${contextPath}`);
-
       if (isUrl(contextPath)) {
         projectPath = await cloneRepository(contextPath);
         const { analyzeProject } = await import('./project-analyzer');
@@ -762,115 +750,122 @@ export async function startChatSession(
         projectAnalysis = await analyzeProject(contextPath);
         projectPath = contextPath;
       }
-
       console.log('\nProject Summary:');
       console.log(projectAnalysis.summary);
     }
 
-    // 2. Prepare initial context for the AI
+    // 2. Prepare initial context for the AI (same as before)
     const initialContext = prepareInitialContext(projectAnalysis, options);
     const messages: ChatMessage[] = [
       { role: 'system', content: initialContext.systemPrompt },
       ...initialContext.initialMessages
     ];
 
-    // Handle script mode - non-interactive, single response
+    // (Script mode handling remains the same as it's non-interactive)
     if (options.mode === 'script' && options.scriptContext && options.scriptName && projectPath) {
-      const spinner = ora(`Generating script ${options.scriptName}...`).start();
-      try {
-        const aiResponse = await getResponseWithRetry(config, messages, options);
-        spinner.stop();
-
-        const cleanedResponse = cleanAiScriptResponse(aiResponse.content);
-        const filePath = path.join(projectPath, options.scriptName);
-        await fs.ensureDir(path.dirname(filePath));
-        await fs.writeFile(filePath, cleanedResponse);
-        console.log(chalk.green(`\nSuccessfully created script: ${filePath}`));
-      } catch (error) {
-        spinner.stop();
-        if (error instanceof AiCommunicationError) {
-          console.error(chalk.red(error.message));
-        } else {
-          console.error(chalk.red('Error generating script:'), error);
+        const spinner = ora(`Generating script ${options.scriptName}...`).start();
+        try {
+            const aiResponse = await getResponseWithRetry(config, messages, options);
+            spinner.stop();
+            const cleanedResponse = cleanAiScriptResponse(aiResponse.content);
+            const filePath = path.join(projectPath, options.scriptName);
+            await fs.ensureDir(path.dirname(filePath));
+            await fs.writeFile(filePath, cleanedResponse);
+            console.log(chalk.green(`\nSuccessfully created script: ${filePath}`));
+        } catch (error) {
+            spinner.stop();
+            if (error instanceof AiCommunicationError) {
+                console.error(chalk.red(error.message));
+            } else {
+                console.error(chalk.red('Error generating script:'), error);
+            }
         }
-      }
-      rl.close(); // Close readline and exit
-      return;
+        return;
     }
 
-    console.log('\n\nAI Assistant is ready! Type your message (or "exit" to quit):');
+    console.log('\nAI Assistant is ready! Type your message (or "exit" to quit).');
 
-    // 3. Main Chat Loop
-    while (isReadlineActive) {
+    // 3. Main Chat Loop using inquirer and non-streaming approach
+    while (true) {
       let userInput: string = '';
       try {
-        userInput = await new Promise<string>((resolve) => {
-          rl.question(chalk.bold('\nYou: '), (answer) => resolve(answer));
-        });
-      } catch (err) {
-        console.error(chalk.red('\nError reading user input:'), err);
-        isReadlineActive = false;
-        break;
+        const answers = await inquirer.prompt([
+          {
+            type: 'input',
+            name: 'message',
+            message: chalk.bold('\nYou:'),
+          },
+        ]);
+        userInput = answers.message;
+      } catch (error) {
+        if (ExitPromptError && error instanceof ExitPromptError || (error as Error).name === 'ExitPromptError') {
+          console.log(chalk.yellow('\nChat session ended by user.'));
+          break; // Exit loop gracefully on Ctrl+C
+        } else {
+          console.error(chalk.red('\nAn error occurred while reading input:'), error);
+          break;
+        }
       }
 
       if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
         console.log('Goodbye!');
-        break; // Exit loop
+        break;
       }
 
       messages.push({ role: 'user', content: userInput });
 
       const spinner = ora('AI is thinking...').start();
       try {
-        let aiResponse: AiResponse;
-        let aiResponseContent = '';
-        let isFirstChunk = true;
+        // Always use the non-streaming response function
+        const aiResponse = await getResponseWithRetry(config, messages, options);
+        spinner.succeed('AI responded:');
 
-        if (enableStreaming) {
-          aiResponse = await getStreamedResponse(config, messages, (chunk) => {
-            try {
-              if (isFirstChunk) {
-                spinner.succeed('AI responded:');
-                isFirstChunk = false;
-              }
-              let processedChunk = chunk;
-              try {
-                processedChunk = processAssistantOutput(chunk);
-              } catch (processingError) {
-                console.error(chalk.red('\n\nError during assistant output processing:'), processingError);
-                console.log(chalk.yellow('[WARN] Falling back to raw chunk due to processing error.'));
-              }
-              process.stdout.write(processedChunk); // Write chunk without newline
-              aiResponseContent += chunk;
-            } catch (chunkError) {
-              spinner.fail('Error processing AI response chunk.');
-              console.error(chalk.red('\nError in AI response chunk processing:'), chunkError);
+        // Parse the response content like in @chat.js
+        let finalAiMessage = '';
+        if (aiResponse.content) {
+            const lines = aiResponse.content.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                    const jsonString = line.substring(6);
+                    try {
+                        const parsed = JSON.parse(jsonString);
+                        if (parsed.response) {
+                            finalAiMessage += parsed.response;
+                        } else if (parsed.choices && parsed.choices[0].delta.content) {
+                            finalAiMessage += parsed.choices[0].delta.content;
+                        }
+                    } catch (e) {
+                        // In case of malformed JSON, we might just append the raw string part
+                        finalAiMessage += jsonString;
+                    }
+                }
             }
-          }, options);
-
-          if (isFirstChunk) { // If no chunks were received, stop the spinner
-            spinner.stop();
-          }
-          aiResponse.content = aiResponseContent;
-          process.stdout.write('\n'); // Add a newline after streaming is complete
-
-        } else { // Non-streaming response
-          aiResponse = await getResponseWithRetry(config, messages, options);
-          spinner.succeed('AI responded:');
-          const processedResponse = processAssistantOutput(aiResponse.content);
-          console.log(processedResponse);
+        }
+        
+        // If parsing yields nothing, use the raw content as a fallback
+        if (!finalAiMessage && aiResponse.content) {
+            finalAiMessage = aiResponse.content;
         }
 
-        messages.push({ role: 'assistant', content: aiResponse.content });
+        const processedResponse = processAssistantOutput(finalAiMessage);
+        console.log(processedResponse);
+
+        messages.push({ role: 'assistant', content: finalAiMessage });
         displayTokenWarnings(aiResponse.headers);
 
-        // Handle code modifications suggested by AI
+        // Handle code modifications (same as before)
         if (projectPath && projectAnalysis) {
-          const modifications = parseModificationsFromResponse(aiResponse.content);
+          const modifications = parseModificationsFromResponse(finalAiMessage);
           if (modifications.length > 0) {
             console.log(`\nFound ${modifications.length} potential code modifications.`);
-            const shouldApply = await askUserConfirmation(rl, `Apply these ${modifications.length} modifications?`);
-            if (shouldApply) {
+            // Since we are in a loop, we can't use the old `askUserConfirmation` with `readline`
+            const { confirm } = await inquirer.prompt([{
+                type: 'confirm',
+                name: 'confirm',
+                message: `Apply these ${modifications.length} modifications?`,
+                default: true
+            }]);
+            if (confirm) {
               const result = await applyModifications(projectPath, modifications);
               console.log(`\n${result.message}`);
               if (result.errors && result.errors.length > 0) {
@@ -883,16 +878,15 @@ export async function startChatSession(
       } catch (error) {
         spinner.fail('An error occurred.');
         if (error instanceof AiCommunicationError) {
-          console.error(chalk.red(`\n[AI Communication Error]\n${error.message}\nContinuing chat...`));
+          console.error(chalk.red(`\n[AI Communication Error]\n${error.message}`));
         } else {
-          console.error(chalk.red('\nAn unexpected error occurred:'), error, '\nContinuing chat...');
+          console.error(chalk.red('\nAn unexpected error occurred:'), error);
         }
+        // We continue the loop
       }
     }
   } catch (sessionError) {
     console.error(chalk.red.bold('\nError in chat session:'), sessionError);
-  } finally {
-    isReadlineActive = false;
-    rl.close();
   }
+  // No finally block needed to close readline, as we are not using it.
 }
