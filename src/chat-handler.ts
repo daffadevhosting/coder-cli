@@ -82,7 +82,7 @@ export const startRedesignSession = async (config: Config, url: string): Promise
 
     // Create AbortController for timeout handling
     const controller = new AbortController();
-    const timeout = config.timeout || 30000; // Default to 30 seconds
+    const timeout = config.timeout || 120000; // Default to 120 seconds for redesign
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     const response = await fetch(endpointUrl, {
