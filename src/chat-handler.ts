@@ -53,6 +53,7 @@ export const startChatSession = async (
   options: ChatSessionOptions = {}
 ): Promise<void> => {
   console.log('Starting AI coding assistant session...');
+  let isReadlineActive: boolean = true; // Flag to track readline interface state
   
   // Prepare context based on the provided path
   let projectAnalysis: ProjectAnalysisResult | null = null;
@@ -142,6 +143,7 @@ export const startChatSession = async (
         console.error(chalk.red('\nReadline interface error:'), err);
         // It's crucial to close the readline interface if an error occurs
         // to prevent resource leaks or further issues.
+        isReadlineActive = false; // Set flag to false
         rl.close();
         // If this error is critical, we might want to re-throw or exit.
         // For now, just log and close. The unhandledRejection handler will catch if it's a promise.
@@ -153,11 +155,13 @@ export const startChatSession = async (
         // Main chat loop
         const chatLoop = async (): Promise<void> => {
           try {
-            const userInput = await new Promise<string>((resolve) => {
-              rl.question(chalk.bold('\nYou: '), resolve);
-            });
-            
-            if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
+                                          if (!isReadlineActive) {
+                                            console.error(chalk.red('\nChat session ended due to an inactive readline interface.'));
+                                            return; // Exit chatLoop if readline is not active
+                                          }
+                                          const userInput = await new Promise<string>((resolve) => {
+                                            rl.question(chalk.bold('\nYou: '), resolve);
+                                          });            if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
               console.log('Goodbye!');
               return;
             }
@@ -227,12 +231,11 @@ export const startChatSession = async (
             } catch (error) {
               spinner.fail('An error occurred.');
               if (error instanceof AiCommunicationError) {
-                console.error(chalk.red(`\n[AI Communication Error]\n${error.message}`));
+                console.error(chalk.red(`\n[AI Communication Error]\n${error.message}\nContinuing chat...`));
               } else {
-                console.error(chalk.red('\nAn unexpected error occurred:'), error);
+                console.error(chalk.red('\nAn unexpected error occurred:'), error, '\nContinuing chat...');
               }
             }
-            console.log('DEBUG: After AI response processing (and potential error handling).');
             
             await chatLoop();    
           } catch (loopError) {
@@ -244,7 +247,8 @@ export const startChatSession = async (
         await chatLoop();
       } catch (sessionError) { // Catch errors from the main chat session
         console.error(chalk.red.bold('\nError in chat session:'), sessionError);
-      } finally { // Added finally block
+      } finally {
+        isReadlineActive = false; // Set flag to false before closing
         rl.close();
       }};
 
