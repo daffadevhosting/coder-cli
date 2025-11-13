@@ -1,4 +1,4 @@
-import ora, { Ora } from 'ora';
+import * as ora from 'ora';
 import type { Readable } from 'stream';
 import chalk from 'chalk';
 import { Config } from './config.js';
