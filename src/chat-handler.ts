@@ -609,7 +609,12 @@ const getStreamedResponse = async (
     // Don't log here, let the caller handle UI.
     try {
       const fallbackResult = await getResponseWithRetry(config, messages, options);
-      onChunk(fallbackResult.content);
+      try {
+        onChunk(fallbackResult.content);
+      } catch (onChunkError) {
+        console.error(chalk.red('\nError processing fallback AI response chunk:'), onChunkError);
+        // Continue to return fallbackResult even if onChunk fails, as the content was received.
+      }
       return fallbackResult;
     } catch (fallbackError) {
       // If fallback also fails, throw the most specific error.
