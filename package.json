@@ -25,7 +25,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/daffadevhosting/coder-cli"
+    "url": "git+https://github.com/daffadevhosting/coder-cli.git"
   },
   "dependencies": {
     "chalk": "^5.6.2",
