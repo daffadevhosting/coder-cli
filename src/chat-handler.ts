@@ -198,7 +198,7 @@ export const startChatSession = async (
               console.log(`\nFound ${modifications.length} potential code modifications in the response.`);
               
               // Ask user if they want to apply the modifications
-              const shouldApply = await askUserConfirmation(`Apply these ${modifications.length} code modifications?`);
+              const shouldApply = await askUserConfirmation(rl, `Apply these ${modifications.length} code modifications?`);
               if (shouldApply) {
                 const result = await applyModifications(projectPath, modifications);
                 console.log(`\nModification result: ${result.message}`);
@@ -381,20 +381,14 @@ export const startRedesignSession = async (config: Config, url: string): Promise
 
 /**
  * Ask user for confirmation with a question
+ * @param rl - The readline interface to use
  * @param question - The question to ask
  * @returns User's answer (true for yes, false for no)
  */
-const askUserConfirmation = async (question: string): Promise<boolean> => {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-  
+const askUserConfirmation = async (rl: readline.Interface, question: string): Promise<boolean> => {
   const answer = await new Promise<string>((resolve) => {
     rl.question(`${question} (y/N): `, resolve);
   });
-  
-  rl.close();
   
   return ['y', 'yes', 'Y', 'YES'].includes(answer.trim());
 };

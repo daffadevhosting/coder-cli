@@ -161,10 +161,24 @@ program
   .option('-l, --line <number>', 'specific line number to explain (optional)')
   .action(async (filePath, options) => {
     try {
-      if (!fs.existsSync(filePath)) {
+      // Resolve the file path to handle both absolute and relative paths
+      let resolvedPath = path.resolve(filePath);
+
+      // If the provided path looks absolute but doesn't exist, try treating it as relative to the current directory.
+      // This handles cases where users mistakenly add a leading '/' to a project-relative path.
+      if (!fs.existsSync(resolvedPath) && (filePath.startsWith('/') || filePath.startsWith('\\'))) {
+        const maybeRelativePath = filePath.substring(1);
+        const pathFromCwd = path.resolve(process.cwd(), maybeRelativePath);
+        if (fs.existsSync(pathFromCwd)) {
+          resolvedPath = pathFromCwd;
+        }
+      }
+
+      if (!fs.existsSync(resolvedPath)) {
         throw new Error(`File not found: ${filePath}`);
       }
-      const fileContent = await fs.readFile(filePath, 'utf8');
+      
+      const fileContent = await fs.readFile(resolvedPath, 'utf8');
       let codeToExplain = fileContent;
       let explanationContext = `Explain the following code from file '${filePath}':\n\n\`\`\`\n${fileContent}\n\`\`\``;
 
