@@ -606,8 +606,13 @@ const getStreamedResponse = async (
         // Re-throw to be caught by the outer try-catch of getStreamedResponse
         throw streamProcessingError;
       } finally {
-        if (reader.releaseLock) {
-          reader.releaseLock();
+        try { // Added try-catch here
+          if (reader.releaseLock) {
+            reader.releaseLock();
+          }
+        } catch (releaseError) {
+          console.error(chalk.red('\nError releasing stream reader lock:'), releaseError);
+          // Log the error but don't re-throw, as the main error (if any) has already been handled.
         }
       }
     } else {
