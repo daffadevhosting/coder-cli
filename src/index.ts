@@ -89,7 +89,7 @@ program
         contextPath = options.repo;
       }
       
-      await startChatSession(config, contextPath, options.stream);
+      await startChatSession(config, contextPath, options.stream, { mode: 'chat' });
     } catch (error) {
       console.error(chalk.red(handleUserError(error)));
       logTechnicalError(error);
