@@ -1,4 +1,4 @@
-import * as ora from 'ora';
+import ora from 'ora';
 import type { Readable } from 'stream';
 import chalk from 'chalk';
 import { Config } from './config.js';
@@ -440,7 +440,7 @@ const getStreamedResponse = async (
 ): Promise<AiResponse> => {
   let aiResponseContent = '';
   const responseHeaders: AiResponse['headers'] = {};
-  let spinner: ora.Ora | undefined; // Declare spinner here
+  let spinner: ReturnType<typeof ora> | undefined; // Declare spinner here
 
   try {
     // Construct the appropriate endpoint URL based on mode
