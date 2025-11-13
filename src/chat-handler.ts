@@ -868,7 +868,7 @@ export async function startChatSession(
 
         // Handle code modifications (same as before)
         if (projectPath && projectAnalysis) {
-          const modifications = parseModificationsFromResponse(finalAiMessage);
+          const modifications = parseModificationsFromResponse(messageToDisplay);
           if (modifications.length > 0) {
             console.log(`\nFound ${modifications.length} potential code modifications.`);
             // Since we are in a loop, we can't use the old `askUserConfirmation` with `readline`
