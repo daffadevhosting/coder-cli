@@ -163,13 +163,19 @@ export const startChatSession = async (
   
         if (enableStreaming) {
           aiResponse = await getStreamedResponse(config, messages, (chunk) => {
-            if (isFirstChunk) {
-              spinner.succeed('AI responded:');
-              isFirstChunk = false;
+            try {
+              if (isFirstChunk) {
+                spinner.succeed('AI responded:');
+                isFirstChunk = false;
+              }
+              const processedChunk = processAssistantOutput(chunk);
+              process.stdout.write(processedChunk);
+              aiResponseContent += chunk;
+            } catch (chunkError) {
+              spinner.fail('Error processing AI response chunk.');
+              console.error(chalk.red('\nError in AI response chunk processing:'), chunkError);
+              // Optionally, re-throw or handle more gracefully if needed
             }
-            const processedChunk = processAssistantOutput(chunk);
-            process.stdout.write(processedChunk);
-            aiResponseContent += chunk;
           }, options);
           
           if (isFirstChunk) {
