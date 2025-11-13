@@ -283,6 +283,8 @@ const getStreamedResponse = async (
       signal: controller.signal
     });
 
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `API request failed with status ${response.status}: ${errorText}`;
@@ -816,7 +818,7 @@ export async function startChatSession(
         projectPath = contextPath;
       }
 
-      console.log('\\nProject Summary:');
+      console.log('\nProject Summary:');
       console.log(projectAnalysis.summary);
     }
 
@@ -851,7 +853,7 @@ export async function startChatSession(
       return;
     }
 
-    console.log('\\nAI Assistant is ready! Type your message (or "exit" to quit):');
+    console.log('\n\nAI Assistant is ready! Type your message (or "exit" to quit):');
 
     // 3. Main Chat Loop
     while (isReadlineActive) {
@@ -861,7 +863,7 @@ export async function startChatSession(
           rl.question(chalk.bold('\nYou: '), (answer) => resolve(answer));
         });
       } catch (err) {
-        console.error(chalk.red('\\nError reading user input:'), err);
+        console.error(chalk.red('\nError reading user input:'), err);
         isReadlineActive = false;
         break;
       }
@@ -890,14 +892,14 @@ export async function startChatSession(
               try {
                 processedChunk = processAssistantOutput(chunk);
               } catch (processingError) {
-                console.error(chalk.red('\\nError during assistant output processing:'), processingError);
+                console.error(chalk.red('\n\nError during assistant output processing:'), processingError);
                 console.log(chalk.yellow('[WARN] Falling back to raw chunk due to processing error.'));
               }
               process.stdout.write(processedChunk); // Write chunk without newline
               aiResponseContent += chunk;
             } catch (chunkError) {
               spinner.fail('Error processing AI response chunk.');
-              console.error(chalk.red('\\nError in AI response chunk processing:'), chunkError);
+              console.error(chalk.red('\nError in AI response chunk processing:'), chunkError);
             }
           }, options);
 
@@ -905,7 +907,7 @@ export async function startChatSession(
             spinner.stop();
           }
           aiResponse.content = aiResponseContent;
-          process.stdout.write('\\n'); // Add a newline after streaming is complete
+          process.stdout.write('\n'); // Add a newline after streaming is complete
 
         } else { // Non-streaming response
           aiResponse = await getResponseWithRetry(config, messages, options);
@@ -927,7 +929,7 @@ export async function startChatSession(
               const result = await applyModifications(projectPath, modifications);
               console.log(`\n${result.message}`);
               if (result.errors && result.errors.length > 0) {
-                console.error('Errors during modification:', result.errors.join('\\n'));
+                console.error('Errors during modification:', result.errors.join('\n'));
               }
             }
           }
@@ -938,12 +940,12 @@ export async function startChatSession(
         if (error instanceof AiCommunicationError) {
           console.error(chalk.red(`\n[AI Communication Error]\n${error.message}\nContinuing chat...`));
         } else {
-          console.error(chalk.red('\\nAn unexpected error occurred:'), error, '\\nContinuing chat...');
+          console.error(chalk.red('\nAn unexpected error occurred:'), error, '\nContinuing chat...');
         }
       }
     }
   } catch (sessionError) {
-    console.error(chalk.red.bold('\\nError in chat session:'), sessionError);
+    console.error(chalk.red.bold('\nError in chat session:'), sessionError);
   } finally {
     isReadlineActive = false;
     rl.close();
