@@ -8,6 +8,7 @@ import chalk from 'chalk';
 export interface Config {
   apiUrl: string;
   apiKey?: string;
+  timeout?: number; // Request timeout in milliseconds
 }
 
 const CONFIG_FILE_NAME = '.coder-cli-config.json';
@@ -45,6 +46,7 @@ const getDefaultConfig = (): Config => {
   return {
     apiUrl: 'https://coder-ai.mvstream.workers.dev/api', // Production backend base URL
     apiKey: undefined,
+    timeout: 30000, // 30 seconds default timeout
   };
 };
 
@@ -90,7 +92,8 @@ export const initializeConfig = async (): Promise<void> => {
 
   const config: Config = {
     apiUrl: 'https://coder-ai.mvstream.workers.dev/api',
-    apiKey: answers.apiKey || undefined
+    apiKey: answers.apiKey || undefined,
+    timeout: 30000 // 30 seconds default timeout
   };
 
   saveConfig(config);

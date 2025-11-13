@@ -112,7 +112,7 @@ export const startChatSession = async (
     // We will not enter the chat loop, but directly get the response and write to file
     const spinner = ora(`Generating script ${options.scriptName}...`).start();
     try {
-      const aiResponse = await getResponse(config, messages, options);
+      const aiResponse = await getResponseWithRetry(config, messages, options);
       spinner.stop();
 
       const cleanedResponse = cleanAiScriptResponse(aiResponse.content); // Clean the AI response
@@ -179,7 +179,7 @@ export const startChatSession = async (
             aiResponse.content = aiResponseContent; // Set the full content after streaming
     
           } else {
-            aiResponse = await getResponse(config, messages, options);
+            aiResponse = await getResponseWithRetry(config, messages, options);
             spinner.stop();
             
             const processedResponse = processAssistantOutput(aiResponse.content);
@@ -262,14 +262,22 @@ export const startRedesignSession = async (config: Config, url: string): Promise
   try {
     const endpointUrl = buildApiUrl(config.apiUrl, 'redesign');
     
+    // Create AbortController for timeout handling
+    const controller = new AbortController();
+    const timeout = config.timeout || 30000; // Default to 30 seconds
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
     const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
       },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ url }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       spinner.stop();
@@ -420,6 +428,11 @@ const getStreamedResponse = async (
     // Construct the appropriate endpoint URL based on mode
     const endpointUrl = buildApiUrl(config.apiUrl, options.mode || 'chat');
 
+    // Create AbortController for timeout handling
+    const controller = new AbortController();
+    const timeout = config.timeout || 30000; // Default to 30 seconds
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
     const response = await fetch(endpointUrl, {
       method: 'POST',
       headers: {
@@ -431,8 +444,11 @@ const getStreamedResponse = async (
       body: JSON.stringify({ 
         messages,
         mode: options.mode || 'chat'
-      })
+      }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
     
     // Extract rate limit headers
     responseHeaders['x-ratelimit-remaining'] = response.headers.get('x-ratelimit-remaining') || undefined;
@@ -586,7 +602,7 @@ const getStreamedResponse = async (
     // If streaming fails, try a non-streaming fallback.
     // Don't log here, let the caller handle UI.
     try {
-      const fallbackResult = await getResponse(config, messages, options);
+      const fallbackResult = await getResponseWithRetry(config, messages, options);
       onChunk(fallbackResult.content);
       return fallbackResult;
     } catch (fallbackError) {
@@ -700,6 +716,52 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
     // Let the caller handle the error UI
     throw error;
   }
+};
+
+/**
+ * Wrapper for getResponse with retry mechanism to handle connection failures
+ * @param config - Configuration for the AI backend
+ * @param messages - Chat messages to send
+ * @param options - Additional options for the chat session
+ * @param maxRetries - Maximum number of retry attempts (default: 3)
+ * @returns Promise resolving to the AI response
+ */
+const getResponseWithRetry = async (
+  config: Config,
+  messages: ChatMessage[],
+  options: ChatSessionOptions = {},
+  maxRetries: number = 3
+): Promise<AiResponse> => {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await getResponse(config, messages, options);
+    } catch (error) {
+      lastError = error;
+
+      // Check if error is a timeout or connection issue that should not be retried
+      if (error instanceof Error) {
+        if (error.message.includes('Daily free generation limit exceeded') || 
+            error.message.includes('Insufficient tokens') ||
+            error.message.includes('Authentication failed')) {
+          // These are not retryable errors
+          throw error;
+        }
+      }
+
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s...
+        console.log(chalk.yellow(`Request failed (attempt ${attempt}/${maxRetries}). Retrying in ${delay/1000}s...`));
+        
+        // Wait for the delay period
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  // If all retries failed, throw the last error
+  throw lastError || new Error('Request failed after maximum retries');
 };
 
 /**
