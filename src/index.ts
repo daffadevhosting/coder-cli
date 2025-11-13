@@ -161,20 +161,39 @@ program
   .option('-l, --line <number>', 'specific line number to explain (optional)')
   .action(async (filePath, options) => {
     try {
-      // Resolve the file path to handle both absolute and relative paths
-      let resolvedPath = path.resolve(filePath);
+      let resolvedPath: string | null = null;
+      const currentCwd = process.cwd();
+      // Assuming a monorepo structure where 'cli' is directly under the monorepo root
+      const monorepoRoot = path.resolve(currentCwd, '..'); 
 
-      // If the provided path looks absolute but doesn't exist, try treating it as relative to the current directory.
-      // This handles cases where users mistakenly add a leading '/' to a project-relative path.
-      if (!fs.existsSync(resolvedPath) && (filePath.startsWith('/') || filePath.startsWith('\\'))) {
-        const maybeRelativePath = filePath.substring(1);
-        const pathFromCwd = path.resolve(process.cwd(), maybeRelativePath);
-        if (fs.existsSync(pathFromCwd)) {
-          resolvedPath = pathFromCwd;
+      // Define potential base paths to check against
+      const potentialBasePaths = [
+        currentCwd, // 1. Path relative to current CLI execution directory
+        monorepoRoot, // 2. Path relative to monorepo root
+      ];
+
+      // If the input path starts with a slash, it might be an "absolute" path relative to the monorepo root
+      // or a truly absolute path. We'll try resolving it directly first.
+      if (filePath.startsWith('/') || filePath.startsWith('\\')) {
+        const absoluteCandidate = path.resolve(filePath);
+        if (fs.existsSync(absoluteCandidate)) {
+          resolvedPath = absoluteCandidate;
         }
       }
 
-      if (!fs.existsSync(resolvedPath)) {
+      // If not found yet, try resolving relative to potential base paths
+      if (!resolvedPath) {
+        for (const basePath of potentialBasePaths) {
+          // Remove leading slash if present for relative resolution against a base path
+          const candidatePath = path.resolve(basePath, filePath.replace(/^[/\\]/, '')); 
+          if (fs.existsSync(candidatePath)) {
+            resolvedPath = candidatePath;
+            break;
+          }
+        }
+      }
+
+      if (!resolvedPath) {
         throw new Error(`File not found: ${filePath}`);
       }
       
