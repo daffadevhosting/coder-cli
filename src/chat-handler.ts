@@ -25,6 +25,8 @@ export interface AiResponse {
     'x-ratelimit-remaining'?: string;
     'x-ratelimit-limit'?: string;
     'x-ratelimit-reset'?: string;
+    'x-tokens-remaining'?: string;
+    'x-daily-free-generations-remaining'?: string;
   };
 }
 
@@ -45,19 +47,35 @@ export interface ChatSessionOptions {
  * @param headers - Response headers containing rate limit and token info.
  */
 const displayTokenWarnings = (headers: AiResponse['headers']) => {
-  const remaining = parseInt(headers['x-ratelimit-remaining'] || '0', 10);
-  const limit = parseInt(headers['x-ratelimit-limit'] || '0', 10);
+  const remainingRateLimit = parseInt(headers['x-ratelimit-remaining'] || '0', 10);
+  const limitRateLimit = parseInt(headers['x-ratelimit-limit'] || '0', 10);
+  const tokensRemaining = parseInt(headers['x-tokens-remaining'] || '0', 10);
+  const dailyFreeGenerationsRemaining = parseInt(headers['x-daily-free-generations-remaining'] || '0', 10);
 
-  if (isNaN(remaining) || isNaN(limit) || limit === 0) {
-    return; // No valid rate limit info
+  // Rate limit warnings
+  if (!isNaN(remainingRateLimit) && !isNaN(limitRateLimit) && limitRateLimit > 0) {
+    if (remainingRateLimit <= 2 && remainingRateLimit > 0) {
+      console.log(chalk.yellow(`
+⚠️ Peringatan: Anda memiliki ${remainingRateLimit} permintaan tersisa sebelum mencapai batas rate limit. Pertimbangkan untuk membeli token.`));
+    } else if (remainingRateLimit === 0) {
+      console.log(chalk.red(`
+❌ Peringatan: Anda telah mencapai batas rate limit. Silakan beli token untuk melanjutkan.`));
+    }
   }
 
-  if (remaining <= 2 && remaining > 0) {
+  // Token balance warnings
+  if (!isNaN(tokensRemaining) && tokensRemaining <= 15 && tokensRemaining > 0) { // Assuming 15 tokens per generation
     console.log(chalk.yellow(`
-⚠️ Peringatan: Anda memiliki ${remaining} permintaan tersisa sebelum mencapai batas. Pertimbangkan untuk membeli token.`));
-  } else if (remaining === 0) {
+⚠️ Peringatan: Anda memiliki ${tokensRemaining} token tersisa. Pertimbangkan untuk membeli lebih banyak token.`));
+  } else if (!isNaN(tokensRemaining) && tokensRemaining === 0 && dailyFreeGenerationsRemaining === 0) {
     console.log(chalk.red(`
-❌ Peringatan: Anda telah mencapai batas permintaan. Silakan beli token untuk melanjutkan.`));
+❌ Peringatan: Anda tidak memiliki token atau generasi gratis tersisa. Silakan beli token untuk melanjutkan.`));
+  } else if (!isNaN(dailyFreeGenerationsRemaining) && dailyFreeGenerationsRemaining <= 1 && dailyFreeGenerationsRemaining > 0) {
+    console.log(chalk.yellow(`
+⚠️ Peringatan: Anda memiliki ${dailyFreeGenerationsRemaining} generasi gratis tersisa. Pertimbangkan untuk membeli token.`));
+  } else if (!isNaN(dailyFreeGenerationsRemaining) && dailyFreeGenerationsRemaining === 0 && tokensRemaining === 0) {
+    console.log(chalk.red(`
+❌ Peringatan: Anda tidak memiliki token atau generasi gratis tersisa. Silakan beli token untuk melanjutkan.`));
   }
 };
 
@@ -441,10 +459,12 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
       })
     });
 
-    // Extract rate limit headers
+    // Extract rate limit and token headers
     responseHeaders['x-ratelimit-remaining'] = response.headers.get('x-ratelimit-remaining') || undefined;
     responseHeaders['x-ratelimit-limit'] = response.headers.get('x-ratelimit-limit') || undefined;
     responseHeaders['x-ratelimit-reset'] = response.headers.get('x-ratelimit-reset') || undefined;
+    responseHeaders['x-tokens-remaining'] = response.headers.get('x-tokens-remaining') || undefined;
+    responseHeaders['x-daily-free-generations-remaining'] = response.headers.get('x-daily-free-generations-remaining') || undefined;
 
     if (!response.ok) {
       const errorText = await response.text();
