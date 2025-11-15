@@ -15,7 +15,7 @@ const CONFIG_FILE_NAME = '.coder-cli-config.json';
 
 // Get the config file path in the user's home directory
 export const getConfigPath = (): string => {
-  return path.join(os.homedir(), CONFIG_FILE_NAME);
+  return path.join(process.cwd(), CONFIG_FILE_NAME);
 };
 
 // Load configuration from file
@@ -46,7 +46,7 @@ const getDefaultConfig = (): Config => {
   return {
     apiUrl: 'https://coder-ai.mvstream.workers.dev/api', // Production backend base URL
     apiKey: undefined,
-    timeout: 30000, // 30 seconds default timeout
+    timeout: 600000, // 10 minutes default timeout
   };
 };
 
@@ -93,7 +93,7 @@ export const initializeConfig = async (): Promise<void> => {
   const config: Config = {
     apiUrl: 'https://coder-ai.mvstream.workers.dev/api',
     apiKey: answers.apiKey || undefined,
-    timeout: 120000 // 120 seconds default timeout
+    timeout: 600000 // 10 minutes default timeout
   };
 
   saveConfig(config);
