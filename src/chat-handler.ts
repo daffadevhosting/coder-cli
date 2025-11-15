@@ -275,7 +275,7 @@ const getStreamedResponse = async (
 
     // Create AbortController for timeout handling
     const controller = new AbortController();
-    const timeout = config.timeout || 30000; // Default to 30 seconds
+    const timeout = config.timeout || 600000; // Default to 600 seconds (10 minutes)
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     const headers: HeadersInit = {
