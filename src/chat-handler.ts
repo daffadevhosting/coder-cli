@@ -109,7 +109,7 @@ export const startRedesignSession = async (config: Config, url: string): Promise
         'Content-Type': 'application/json',
         ...(config.apiKey ? { 'Authorization': `Bearer ${config.apiKey}` } : {})
       },
-      body: JSON.stringify({ url }),
+      body: JSON.stringify({ input: url }),
       signal: controller.signal
     });
 
