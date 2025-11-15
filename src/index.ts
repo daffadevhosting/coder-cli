@@ -324,7 +324,7 @@ const createNewProject = async (config: import('./config').Config, projectName: 
   const messages: ChatMessage[] = [
     { 
       role: 'system', 
-      content: 'You are a helpful AI coding assistant that generates complete project files. Return the files in a structured JSON format with file paths and content. Format: {"files": [{"path": "file/path", "content": "file content"}]}' 
+      content: 'You are CoDa, helpful AI coding assistant that generates complete project files. Return the files in a structured JSON format with file paths and content. Format: {"files": [{"path": "file/path", "content": "file content"}]}' 
     },
     { 
       role: 'user', 

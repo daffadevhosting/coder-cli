@@ -93,7 +93,7 @@ export const initializeConfig = async (): Promise<void> => {
   const config: Config = {
     apiUrl: 'https://coder-ai.mvstream.workers.dev/api',
     apiKey: answers.apiKey || undefined,
-    timeout: 30000 // 30 seconds default timeout
+    timeout: 120000 // 120 seconds default timeout
   };
 
   saveConfig(config);
