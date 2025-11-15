@@ -2,6 +2,9 @@
 
 [![npm version](https://img.shields.io/npm/v/@jekyll-studio/coder-cli.svg)](https://www.npmjs.com/package/@jekyll-studio/coder-cli) 
 
+[![NPM Weekly Downloads](https://img.shields.io/npm/dw/@jekyll-studio/coder-cli.svg)](https://www.npmjs.com/package/@jekyll-studio/coder-cli)
+
+
 AI-powered CLI tool for code analysis, creation, and fixes. This tool integrates with your AI backend to provide intelligent coding assistance right from your terminal.
 
 ```
