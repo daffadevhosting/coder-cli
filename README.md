@@ -6,11 +6,10 @@
 
 AI-powered CLI tool for code analysis, creation, and fixes. This tool integrates with your AI backend to provide intelligent coding assistance right from your terminal.
 
-```
-__     ___  _____  ____  ____  ____ 
-\\ \\   / __)(  _  )(  _ \\( ___)(  _ \\
-) ) ( (__  )(_)(  )(_) ))__)  )   /
-/_/   \\___)(_____)(____/(____)(_)\\_)
+```__      ___  _____  ____  ____  ____ 
+\ \    / __)(  _  )(  _ \( ___)(  _ \
+ > >  ( (__  )(_)(  )(_) ))__)  )   /
+/_/    \___)(_____)(____/(____)(_)\_)
 ```
 ![coder](./coder.png))
 ## Installation
