@@ -1,7 +1,6 @@
 # Coder CLI
 
 [![npm version](https://img.shields.io/npm/v/@jekyll-studio/coder-cli.svg)](https://www.npmjs.com/package/@jekyll-studio/coder-cli) 
-
 [![NPM Weekly Downloads](https://img.shields.io/npm/dw/@jekyll-studio/coder-cli.svg)](https://www.npmjs.com/package/@jekyll-studio/coder-cli)
 
 
