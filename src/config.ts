@@ -52,8 +52,8 @@ const getDefaultConfig = (): Config => {
 
 // Initialize configuration interactively
 export const initializeConfig = async (): Promise<void> => {
-  console.log('Setting up Coder CLI configuration...');
-  console.log('Connecting to: https://coder-ai.mvstream.workers.dev/api');
+  console.log(chalk.yellow('Setting up Coder CLI configuration...'));
+  console.log(chalk.green('Connecting to backend'));
 
   const configPath = getConfigPath();
 

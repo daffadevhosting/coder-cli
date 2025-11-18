@@ -54,28 +54,28 @@ const displayTokenWarnings = (headers: AiResponse['headers']) => {
 
   // Rate limit warnings
   if (!isNaN(remainingRateLimit) && !isNaN(limitRateLimit) && limitRateLimit > 0) {
-    if (remainingRateLimit <= 2 && remainingRateLimit > 0) {
+    if (remainingRateLimit <= 10 && remainingRateLimit > 0) {
       console.log(chalk.yellow(`
-⚠️ Peringatan: Anda memiliki ${remainingRateLimit} permintaan tersisa sebelum mencapai batas rate limit. Pertimbangkan untuk membeli token.`));
+⚠️  Warning: You have ${remainingRateLimit} remaining requests before reaching the rate limit. Consider purchasing tokens.`));
     } else if (remainingRateLimit === 0) {
       console.log(chalk.red(`
-❌ Peringatan: Anda telah mencapai batas rate limit. Silakan beli token untuk melanjutkan.`));
+❌  Warning: You have reached your rate limit. Please purchase tokens to continue.`));
     }
   }
 
   // Token balance warnings
-  if (!isNaN(tokensRemaining) && tokensRemaining <= 15 && tokensRemaining > 0) { // Assuming 15 tokens per generation
+  if (!isNaN(tokensRemaining) && tokensRemaining <= 200 && tokensRemaining > 0) { // Assuming 15 tokens per generation
     console.log(chalk.yellow(`
-⚠️ Peringatan: Anda memiliki ${tokensRemaining} token tersisa. Pertimbangkan untuk membeli lebih banyak token.`));
+⚠️  Warning: You have ${tokensRemaining} tokens remaining. Consider purchasing more tokens.`));
   } else if (!isNaN(tokensRemaining) && tokensRemaining === 0 && dailyFreeGenerationsRemaining === 0) {
     console.log(chalk.red(`
-❌ Peringatan: Anda tidak memiliki token atau generasi gratis tersisa. Silakan beli token untuk melanjutkan.`));
+❌  Warning: You have no free tokens or free generations remaining. Please purchase tokens to continue.`));
   } else if (!isNaN(dailyFreeGenerationsRemaining) && dailyFreeGenerationsRemaining <= 1 && dailyFreeGenerationsRemaining > 0) {
     console.log(chalk.yellow(`
-⚠️ Peringatan: Anda memiliki ${dailyFreeGenerationsRemaining} generasi gratis tersisa. Pertimbangkan untuk membeli token.`));
+⚠️  Warning: You have ${dailyFreeGenerationsRemaining} free generation remaining. Consider purchasing tokens.`));
   } else if (!isNaN(dailyFreeGenerationsRemaining) && dailyFreeGenerationsRemaining === 0 && tokensRemaining === 0) {
     console.log(chalk.red(`
-❌ Peringatan: Anda tidak memiliki token atau generasi gratis tersisa. Silakan beli token untuk melanjutkan.`));
+❌  Warning: You have no free tokens or free generations remaining. Please purchase tokens to continue.`));
   }
 };
 
