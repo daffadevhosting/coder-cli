@@ -261,7 +261,8 @@ const cleanAiScriptResponse = (rawResponse: string): string => {
  */
 const getStreamedResponse = async (
   config: Config,
-  messages: ChatMessage[],
+  clientMessages: ChatMessage[],
+  clientSystemPrompt: string,
   onChunk: (chunk: string) => void,
   options: ChatSessionOptions = {}
 ): Promise<AiResponse> => {
@@ -295,7 +296,8 @@ const getStreamedResponse = async (
       method: 'POST',
       headers,
       body: JSON.stringify({
-        messages,
+        clientMessages,
+        clientSystemPrompt,
         mode: options.mode || 'chat'
       }),
       signal: controller.signal
@@ -433,7 +435,12 @@ const getStreamedResponse = async (
  * @param messages - Conversation messages
  * @returns AI response
  */
-const getResponse = async (config: Config, messages: ChatMessage[], options: ChatSessionOptions = {}): Promise<AiResponse> => {
+const getResponse = async (
+  config: Config,
+  clientMessages: ChatMessage[],
+  clientSystemPrompt: string,
+  options: ChatSessionOptions = {}
+): Promise<AiResponse> => {
   const responseHeaders: AiResponse['headers'] = {};
   let aiResponseContent = '';
 
@@ -454,7 +461,8 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
       method: 'POST',
       headers,
       body: JSON.stringify({
-        messages,
+        clientMessages,
+        clientSystemPrompt,
         mode: options.mode || 'chat'
       })
     });
@@ -531,7 +539,8 @@ const getResponse = async (config: Config, messages: ChatMessage[], options: Cha
  */
 const getResponseWithRetry = async (
   config: Config,
-  messages: ChatMessage[],
+  clientMessages: ChatMessage[],
+  clientSystemPrompt: string,
   options: ChatSessionOptions = {},
   maxRetries: number = 3
 ): Promise<AiResponse> => {
@@ -539,7 +548,7 @@ const getResponseWithRetry = async (
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await getResponse(config, messages, options);
+      return await getResponse(config, clientMessages, clientSystemPrompt, options);
     } catch (error) {
       lastError = error;
 
@@ -781,7 +790,6 @@ export async function startChatSession(
     // 2. Prepare initial context for the AI (same as before)
     const initialContext = prepareInitialContext(projectAnalysis, options);
     const messages: ChatMessage[] = [
-      { role: 'system', content: initialContext.systemPrompt },
       ...initialContext.initialMessages
     ];
 
@@ -789,7 +797,7 @@ export async function startChatSession(
     if (options.mode === 'script' && options.scriptContext && options.scriptName && projectPath) {
         const spinner = ora(`Generating script ${options.scriptName}...`).start();
         try {
-            const aiResponse = await getResponseWithRetry(config, messages, options);
+            const aiResponse = await getResponseWithRetry(config, messages, initialContext.systemPrompt, options);
             spinner.stop();
             const cleanedResponse = cleanAiScriptResponse(aiResponse.content);
             const filePath = path.join(projectPath, options.scriptName);
@@ -841,7 +849,7 @@ export async function startChatSession(
       const spinner = ora('AI is thinking...').start();
       try {
         // Always use the non-streaming response function
-        const aiResponse = await getResponseWithRetry(config, messages, options);
+        const aiResponse = await getResponseWithRetry(config, messages, initialContext.systemPrompt, options);
         spinner.succeed(' ');
 
         let usageInfo: { prompt_tokens: number, completion_tokens: number, total_tokens: number } | null = null;

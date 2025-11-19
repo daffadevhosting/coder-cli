@@ -213,7 +213,7 @@ program
 
       await startChatSession(config, undefined, true, {
         mode: 'explain',
-        explanationRequest: explanationContext
+        clientSystemPrompt: explanationContext
       });
     } catch (error) {
       console.error(chalk.red(handleUserError(error)));
@@ -251,7 +251,7 @@ program
         mode: 'script',
         scriptName: scriptName,
         scriptSpecification: options.spec,
-        scriptContext: userMessage
+        clientSystemPrompt: userMessage
       });
     } catch (error) {
       console.error(chalk.red(handleUserError(error)));
