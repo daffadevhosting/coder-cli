@@ -587,7 +587,7 @@ const prepareInitialContext = (
   projectAnalysis: ProjectAnalysisResult | null,
   options: ChatSessionOptions
 ): { systemPrompt: string; initialMessages: ChatMessage[] } => {
-  let systemPrompt = `You are an AI coding assistant. Help with analyzing, creating, and fixing code.
+  let systemPrompt = `You are CoDa, an AI coding assistant. Help with analyzing, creating, and fixing code.
 
 Be concise but thorough in your responses. When providing code, use proper syntax highlighting.
 If you're asked to analyze a project, focus on the architecture, key components, and potential issues.
@@ -816,7 +816,7 @@ export async function startChatSession(
         return;
     }
 
-    console.log('\nAI Assistant is ready! Type your message (or "exit" to quit).');
+    console.log(chalk.yellowBright('\nAI Assistant is ready! Type your message (or "exit" to quit).'));
 
     // 3. Main Chat Loop using inquirer and non-streaming approach
     while (true) {
@@ -841,7 +841,7 @@ export async function startChatSession(
       }
 
       if (userInput.toLowerCase() === 'exit' || userInput.toLowerCase() === 'quit') {
-        console.log('Goodbye!');
+        console.log(chalk.yellowBright('OK.. Goodbye!'));
         break;
       }
 
@@ -885,7 +885,7 @@ export async function startChatSession(
         }
 
         const processedResponse = processAssistantOutput(messageToDisplay);
-        console.log(chalk.green('\n[^_^] AI:'), processedResponse);
+        console.log(chalk.green('\n{^_^} AI:'), processedResponse);
 
         if (usageInfo) {
             console.log(chalk.yellow(`[Tokens] Total: ${usageInfo.total_tokens} (Prompt: ${usageInfo.prompt_tokens}, Completion: ${usageInfo.completion_tokens})`));
