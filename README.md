@@ -150,22 +150,22 @@ The `new` command intelligently generates complete project structures with all n
 
 ## AI Models Configuration
 
-The backend uses Cloudflare Workers AI to run different AI models for different purposes, optimized for performance and cost.
+The backend run different AI models for different purposes, optimized for performance and cost.
 
 ### Chat Model
-- **Model ID**: `@cf/google/gemma-3-12b-it`
+- **Model ID**: `google/gemma-3-12b-it`
 - **Purpose**: General conversation, answering questions, and non-code related queries. Ideal for quick, interactive responses.
 - **Usage**: Primarily used for `/api/chat` when the mode is 'chat' or unspecified.
 - **Characteristics**: Optimized for natural conversation and general knowledge queries. Generally the most cost-effective for basic interactions.
 
 ### Code Model  
-- **Model ID**: `@cf/qwen/qwen2.5-coder-32b-instruct`
+- **Model ID**: `qwen/qwen2.5-coder-32b-instruct`
 - **Purpose**: Code generation, code fixing, and script generation.
 - **Usage**: Used for `/api/create`, `/api/fix`, and `/api/script` endpoints. Also used in `/api/chat` when the mode is 'create' or 'fix'.
 - **Characteristics**: Optimized for code understanding, generation, and technical problem solving. Offers a good balance of capability and cost for coding tasks.
 
 ### Advanced Model
-- **Model ID**: `@cf/deepseek-ai/deepseek-r1-distill-qwen-32b`
+- **Model ID**: `deepseek-ai/deepseek-r1-distill-qwen-32b`
 - **Purpose**: Complex code analysis, detailed explanations, project generation, and creative web page redesign.
 - **Usage**: Used for `/api/analyze`, `/api/explain`, `/api/project`, and `/api/redesign` endpoints. Also used in `/api/chat` when the mode is 'analyze'.
 - **Characteristics**: A larger, more capable model suitable for tasks requiring deeper understanding, creativity, and comprehensive output. This model is generally more expensive per token.
