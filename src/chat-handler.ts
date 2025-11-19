@@ -40,6 +40,7 @@ export interface ChatSessionOptions {
   scriptSpecification?: string;
   scriptContext?: string;
   redesignUrl?: string;
+  clientSystemPrompt?: string; // Added this line
 }
 
 /**
@@ -407,7 +408,7 @@ const getStreamedResponse = async (
     // If streaming fails, try a non-streaming fallback.
     // Don't log here, let the caller handle UI.
     try {
-      const fallbackResult = await getResponseWithRetry(config, messages, options);
+      const fallbackResult = await getResponseWithRetry(config, clientMessages, clientSystemPrompt, options);
       try {
         onChunk(fallbackResult.content);
       } catch (onChunkError) {
